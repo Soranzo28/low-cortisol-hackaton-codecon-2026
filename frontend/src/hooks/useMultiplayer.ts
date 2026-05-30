@@ -8,6 +8,12 @@ export type MultiplayerStatus =
   | 'disconnected'
   | 'error'
 
+export interface GameOverData {
+  yourScore: number
+  opponentScore: number
+  winner: 'you' | 'opponent' | 'draw'
+}
+
 interface UseMultiplayerOptions {
   /** Full WS URL of the room, e.g. wss://192.168.3.10:8765/room/<id> */
   roomWsUrl: string
@@ -19,6 +25,9 @@ interface UseMultiplayerOptions {
 interface UseMultiplayerReturn {
   status: MultiplayerStatus
   opponentCount: number
+  countdown: number | null
+  remaining: number | null
+  gameOver: GameOverData | null
 }
 
 const ICE_SERVERS = [
@@ -34,6 +43,9 @@ export function useMultiplayer({
 }: UseMultiplayerOptions): UseMultiplayerReturn {
   const [status, setStatus] = useState<MultiplayerStatus>('idle')
   const [opponentCount, setOpponentCount] = useState(0)
+  const [countdown, setCountdown] = useState<number | null>(null)
+  const [remaining, setRemaining] = useState<number | null>(null)
+  const [gameOver, setGameOver] = useState<GameOverData | null>(null)
 
   const wsRef = useRef<WebSocket | null>(null)
   const pcRef = useRef<RTCPeerConnection | null>(null)
@@ -109,8 +121,6 @@ export function useMultiplayer({
 
         switch (type) {
           case 'start_offer': {
-            // Server picked us as the offerer (we connected first / slot 0).
-            // No role check — whoever gets this message creates the WebRTC offer.
             setStatus('matched')
             const pc = createPC(stream!)
             const offer = await pc.createOffer()
@@ -120,8 +130,6 @@ export function useMultiplayer({
           }
 
           case 'offer': {
-            // We're the answerer (slot 1). Create answer.
-            // No role check — whoever receives an offer responds with an answer.
             setStatus('matched')
             const pc = createPC(stream!)
             await pc.setRemoteDescription(
@@ -148,6 +156,28 @@ export function useMultiplayer({
             } catch { /* ignore stale candidates */ }
             break
           }
+
+          case 'countdown':
+            setCountdown(msg.value as number)
+            break
+
+          case 'game_start':
+            setCountdown(null)
+            setRemaining(67)
+            break
+
+          case 'tick':
+            setRemaining(msg.remaining as number)
+            break
+
+          case 'game_over':
+            setGameOver({
+              yourScore: msg.your_score as number,
+              opponentScore: msg.opponent_score as number,
+              winner: msg.winner as 'you' | 'opponent' | 'draw',
+            })
+            setRemaining(null)
+            break
 
           case 'opponent_count':
             setOpponentCount(msg.value as number)
@@ -186,13 +216,14 @@ export function useMultiplayer({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomWsUrl])
 
-  // ── relay count whenever it changes ────────────────────────────────────────
+  // ── relay count only while game is active ──────────────────────────────────
   useEffect(() => {
     if (status !== 'matched') return
+    if (remaining === null || gameOver !== null) return
     if (localCount === lastSentCountRef.current) return
     lastSentCountRef.current = localCount
     send({ type: 'count', value: localCount })
-  }, [localCount, status, send])
+  }, [localCount, status, remaining, gameOver, send])
 
-  return { status, opponentCount }
+  return { status, opponentCount, countdown, remaining, gameOver }
 }

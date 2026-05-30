@@ -88,6 +88,12 @@ rooms: dict[str, list[WebSocket]] = {}
 # Grace-period tasks: room_id -> asyncio Task cleaning up the room after delay
 _cleanup_tasks: dict[str, asyncio.Task] = {}
 
+# Last known score per player: room_id -> {id(ws): count}
+room_scores: dict[str, dict[int, int]] = {}
+
+# Match timer tasks: room_id -> asyncio Task running the countdown + game clock
+_match_tasks: dict[str, asyncio.Task] = {}
+
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -120,6 +126,49 @@ def make_room_id() -> str:
     prefix = random.choice(CODECON_TERMS)
     # Two UUIDs concatenated = 256 bits of randomness
     return f"{prefix}_{uuid.uuid4().hex}{uuid.uuid4().hex}"
+
+
+# ─── Match timer ──────────────────────────────────────────────────────────────
+
+async def match_timer(room_id: str) -> None:
+    async def broadcast(msg: dict) -> None:
+        for ws in rooms.get(room_id, []):
+            await ws_send(ws, msg)
+
+    try:
+        for i in range(10, 0, -1):
+            await broadcast({"type": "countdown", "value": i})
+            await asyncio.sleep(1)
+
+        await broadcast({"type": "game_start"})
+        log.info("Sala %s... PARTIDA INICIADA! 67 segundos de pura adrenalina.", room_id[:16])
+
+        for i in range(67, -1, -1):
+            await broadcast({"type": "tick", "remaining": i})
+            if i == 0:
+                break
+            await asyncio.sleep(1)
+
+        scores = room_scores.get(room_id, {})
+        players = rooms.get(room_id, [])
+
+        if len(players) == 2:
+            s0 = scores.get(id(players[0]), 0)
+            s1 = scores.get(id(players[1]), 0)
+            if s0 > s1:
+                w0, w1 = "you", "opponent"
+            elif s1 > s0:
+                w0, w1 = "opponent", "you"
+            else:
+                w0 = w1 = "draw"
+            await ws_send(players[0], {"type": "game_over", "your_score": s0, "opponent_score": s1, "winner": w0})
+            await ws_send(players[1], {"type": "game_over", "your_score": s1, "opponent_score": s0, "winner": w1})
+            log.info("Sala %s... game over! Scores: %d vs %d", room_id[:16], s0, s1)
+
+    except asyncio.CancelledError:
+        log.info("Timer da sala %s... cancelado (jogador saiu antes do fim).", room_id[:16])
+    finally:
+        _match_tasks.pop(room_id, None)
 
 
 # ─── Queue endpoint ───────────────────────────────────────────────────────────
@@ -189,11 +238,14 @@ async def room_endpoint(ws: WebSocket, room_id: str):
     slot = len(rooms[room_id])  # 1 or 2
     log.info("Dev conectou ao localhost da sala %s... (%d/2)", room_id[:16], slot)
 
-    # Once both players are in, tell the offerer to start
+    # Once both players are in, tell the offerer to start and kick off the match timer
     if len(rooms[room_id]) == 2:
         offerer = rooms[room_id][0]
         await ws_send(offerer, {"type": "start_offer"})
         log.info("Sala %s... lotada! Sem merge conflicts. Iniciando compilador de gestos 6/7. Sem deploy na sexta!", room_id[:16])
+        room_scores[room_id] = {}
+        task = asyncio.create_task(match_timer(room_id))
+        _match_tasks[room_id] = task
 
     try:
         async for raw in ws.iter_text():
@@ -209,7 +261,7 @@ async def room_endpoint(ws: WebSocket, room_id: str):
                 await relay_to_opponent(room_id, ws, msg)
 
             elif msg_type == "count":
-                # Relay count to opponent
+                room_scores.setdefault(room_id, {})[id(ws)] = msg.get("value", 0)
                 await relay_to_opponent(
                     room_id, ws,
                     {"type": "opponent_count", "value": msg.get("value", 0)},
@@ -227,15 +279,20 @@ async def room_endpoint(ws: WebSocket, room_id: str):
         if ws in rooms.get(room_id, []):
             rooms[room_id].remove(ws)
 
+        # Cancel match timer when any player leaves mid-game
+        if room_id in _match_tasks:
+            _match_tasks[room_id].cancel()
+
         # Notify opponent
-        for remaining in rooms.get(room_id, []):
-            await ws_send(remaining, {"type": "opponent_left"})
+        for peer in rooms.get(room_id, []):
+            await ws_send(peer, {"type": "opponent_left"})
 
     async def _maybe_destroy(room_id: str) -> None:
         """Destroy room only if still empty after a short grace period."""
         await asyncio.sleep(5)
         if not rooms.get(room_id):
             rooms.pop(room_id, None)
+            room_scores.pop(room_id, None)
             log.info("Sala %s... destruída com sucesso! Garbage Collector limpou o Bartolomeu da memória RAM.", room_id[:16])
         _cleanup_tasks.pop(room_id, None)
 

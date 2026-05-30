@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useGestureDetector } from '@/hooks/useGestureDetector'
-import { useMultiplayer } from '@/hooks/useMultiplayer'
+import { useMultiplayer, GameOverData } from '@/hooks/useMultiplayer'
 import { Counter } from '@/components/Counter'
 import { StatusBadge } from '@/components/StatusBadge'
 import { OpponentPanel } from '@/components/OpponentPanel'
@@ -13,8 +13,6 @@ export default function RoomPage() {
   const { roomId } = useParams<{ roomId: string }>()
   const navigate = useNavigate()
 
-  // Role no longer needed — server determines who is offerer by connection order
-
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const remoteVideoRef = useRef<HTMLVideoElement>(null)
@@ -23,12 +21,31 @@ export default function RoomPage() {
 
   const { count, status: gestureStatus } = useGestureDetector(videoRef, canvasRef)
 
-  const { status: mpStatus, opponentCount } = useMultiplayer({
+  // ── Base count tracking: capture count at game_start so score begins at 0 ──
+  const countRef = useRef(0)
+  countRef.current = count
+
+  const baseCountRef = useRef(0)
+  const gameStartedRef = useRef(false)
+
+  const { status: mpStatus, opponentCount, countdown, remaining, gameOver } = useMultiplayer({
     roomWsUrl,
-    localCount: count,
+    localCount: gameStartedRef.current ? Math.max(0, count - baseCountRef.current) : 0,
     localVideoRef: videoRef,
     remoteVideoRef,
   })
+
+  useEffect(() => {
+    if (remaining !== null && !gameStartedRef.current) {
+      gameStartedRef.current = true
+      baseCountRef.current = countRef.current
+    }
+    if (remaining === null && gameOver === null) {
+      gameStartedRef.current = false
+    }
+  }, [remaining, gameOver])
+
+  const gameCount = gameStartedRef.current ? Math.max(0, count - baseCountRef.current) : 0
 
   const isMatched = mpStatus === 'matched'
 
@@ -49,7 +66,6 @@ export default function RoomPage() {
       if (video.readyState >= 2) setCameraReady(true)
     }
 
-    // Already ready (e.g. hot-reload)
     if (video.readyState >= 2) {
       setCameraReady(true)
       return
@@ -146,7 +162,7 @@ export default function RoomPage() {
       </div>
 
       {/* ── Local counter ────────────────────────────────────────────────────── */}
-      <Counter count={count} side={isMatched ? 'left' : 'center'} />
+      <Counter count={gameCount} side={isMatched ? 'left' : 'center'} />
 
       {/* ── Opponent panel ───────────────────────────────────────────────────── */}
       {isMatched && (
@@ -159,13 +175,28 @@ export default function RoomPage() {
       {/* ── Status badge (bottom center) ─────────────────────────────────────── */}
       {!isMatched && <StatusBadge status={gestureStatus} />}
 
+      {/* ── Game timer ────────────────────────────────────────────────────────── */}
+      {remaining !== null && gameOver === null && (
+        <TimerBadge remaining={remaining} />
+      )}
+
+      {/* ── Pre-game countdown overlay ────────────────────────────────────────── */}
+      {countdown !== null && (
+        <CountdownOverlay value={countdown} />
+      )}
+
       {/* ── Waiting overlay (before match is found in room) ──────────────────── */}
       {(mpStatus === 'connecting' || mpStatus === 'waiting_peer') && (
         <WaitingOverlay status={mpStatus} />
       )}
 
-      {/* ── Disconnected banner ───────────────────────────────────────────────── */}
-      {mpStatus === 'disconnected' && (
+      {/* ── Game over overlay ─────────────────────────────────────────────────── */}
+      {gameOver !== null && (
+        <GameOverOverlay data={gameOver} onGoHome={() => navigate('/')} />
+      )}
+
+      {/* ── Disconnected banner (only if game didn't finish normally) ────────── */}
+      {mpStatus === 'disconnected' && gameOver === null && (
         <DisconnectedBanner onGoHome={() => navigate('/')} />
       )}
     </div>
@@ -173,6 +204,182 @@ export default function RoomPage() {
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
+
+function TimerBadge({ remaining }: { remaining: number }) {
+  const isDanger = remaining <= 5
+  const isWarning = remaining <= 10
+  const color = isDanger ? '#ef4444' : isWarning ? '#f59e0b' : 'rgba(255,255,255,0.9)'
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        top: '1rem',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        zIndex: 20,
+        background: 'rgba(0,0,0,0.6)',
+        backdropFilter: 'blur(4px)',
+        borderRadius: '9999px',
+        padding: '0.35rem 1.1rem',
+        border: `1px solid ${color}55`,
+        transition: 'border-color 0.3s',
+      }}
+    >
+      <span
+        style={{
+          color,
+          fontFamily: "'Inter', sans-serif",
+          fontWeight: 700,
+          fontSize: '1.4rem',
+          fontVariantNumeric: 'tabular-nums',
+          transition: 'color 0.3s',
+        }}
+      >
+        {remaining}s
+      </span>
+    </div>
+  )
+}
+
+function CountdownOverlay({ value }: { value: number }) {
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        inset: 0,
+        zIndex: 50,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '1rem',
+        background: 'rgba(0,0,0,0.72)',
+        backdropFilter: 'blur(6px)',
+      }}
+    >
+      <p
+        style={{
+          color: 'rgba(255,255,255,0.55)',
+          fontSize: '1rem',
+          fontWeight: 600,
+          fontFamily: "'Inter', sans-serif",
+          letterSpacing: '0.08em',
+          textTransform: 'uppercase',
+        }}
+      >
+        Prepare-se!
+      </p>
+      <span
+        key={value}
+        style={{
+          fontSize: '9rem',
+          fontWeight: 800,
+          color: 'white',
+          fontFamily: "'Inter', sans-serif",
+          lineHeight: 1,
+          animation: 'pulse-scale 0.75s ease-out',
+        }}
+      >
+        {value}
+      </span>
+    </div>
+  )
+}
+
+function GameOverOverlay({ data, onGoHome }: { data: GameOverData; onGoHome: () => void }) {
+  const isWin = data.winner === 'you'
+  const isDraw = data.winner === 'draw'
+  const title = isWin ? 'VITÓRIA' : isDraw ? 'EMPATE' : 'DERROTA'
+  const titleColor = isWin ? '#22c55e' : isDraw ? '#f59e0b' : '#ef4444'
+
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        inset: 0,
+        zIndex: 60,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '2rem',
+        background: 'rgba(0,0,0,0.88)',
+        backdropFilter: 'blur(10px)',
+      }}
+    >
+      <h1
+        style={{
+          fontSize: '4.5rem',
+          fontWeight: 800,
+          color: titleColor,
+          fontFamily: "'Inter', sans-serif",
+          margin: 0,
+          letterSpacing: '-0.02em',
+        }}
+      >
+        {title}
+      </h1>
+
+      <div style={{ display: 'flex', gap: '3.5rem', alignItems: 'center' }}>
+        <ScoreBox label="Você" score={data.yourScore} highlight={isWin} />
+        <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '2rem', fontWeight: 300 }}>×</span>
+        <ScoreBox label="Adversário" score={data.opponentScore} highlight={data.winner === 'opponent'} />
+      </div>
+
+      <button
+        onClick={onGoHome}
+        style={{
+          marginTop: '0.5rem',
+          background: 'white',
+          color: 'black',
+          border: 'none',
+          borderRadius: '9999px',
+          padding: '0.8rem 2.8rem',
+          fontSize: '1rem',
+          fontWeight: 700,
+          cursor: 'pointer',
+          fontFamily: "'Inter', sans-serif",
+          transition: 'opacity 0.15s',
+        }}
+        onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.85')}
+        onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
+      >
+        Voltar ao lobby
+      </button>
+    </div>
+  )
+}
+
+function ScoreBox({ label, score, highlight }: { label: string; score: number; highlight: boolean }) {
+  return (
+    <div style={{ textAlign: 'center' }}>
+      <p
+        style={{
+          color: 'rgba(255,255,255,0.45)',
+          fontSize: '0.75rem',
+          fontWeight: 600,
+          textTransform: 'uppercase',
+          letterSpacing: '0.1em',
+          marginBottom: '0.3rem',
+          fontFamily: "'Inter', sans-serif",
+        }}
+      >
+        {label}
+      </p>
+      <p
+        style={{
+          color: highlight ? 'white' : 'rgba(255,255,255,0.6)',
+          fontSize: '4rem',
+          fontWeight: 800,
+          lineHeight: 1,
+          fontFamily: "'Inter', sans-serif",
+        }}
+      >
+        {score}
+      </p>
+    </div>
+  )
+}
 
 function WaitingOverlay({ status }: { status: string }) {
   return (

@@ -9,8 +9,8 @@ const WASM_CDN = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wa
 const MODEL_URL =
   'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task'
 
-const TOP_RATIO = 0.50
-const BOTTOM_RATIO = 0.50
+const TOP_RATIO = 0.45
+const BOTTOM_RATIO = 0.55
 
 const MIN_VISIBILITY = 0.5
 // Only reset arm state after this many ms of continuous low-visibility

@@ -24,6 +24,8 @@ async def get_player(clerk_user_id: str) -> dict | None:
 
 
 async def create_or_update_nick(clerk_user_id: str, nick: str) -> dict:
+    if not _pool:
+        raise ValueError("DB not available")
     try:
         row = await _pool.fetchrow(
             """

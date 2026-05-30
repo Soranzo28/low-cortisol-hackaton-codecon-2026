@@ -2,8 +2,6 @@ FROM python:3.12-slim
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-COPY server.py .
-COPY db.py .
-COPY schema.sql .
+COPY *.py schema.sql ./
 EXPOSE 8765
 CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8765"]

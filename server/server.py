@@ -3,11 +3,14 @@ Servidor de signaling para o contador 6-7 multiplayer.
 
 Endpoints:
   GET  /health               — health check
-  WS   /queue                — fila de matchmaking; ao emparelhar envia { type:"matched", roomId }
-  WS   /room/{room_id}       — sala de jogo (máx 2 jogadores); relay WebRTC + contagens
+  GET  /me                   — dados do jogador autenticado
+  POST /nick                 — define/atualiza o nick do jogador
+  GET  /ranking              — ranking público
+  WS   /queue                — fila de matchmaking
+  WS   /room/{room_id}       — sala de jogo (máx 2 jogadores)
 
 Rodar:
-    python -m uvicorn server:app --host 0.0.0.0 --port 8765 --reload --ssl-certfile cert.pem --ssl-keyfile key.pem
+    python -m uvicorn server:app --host 0.0.0.0 --port 8765 --reload
 """
 
 from __future__ import annotations
@@ -15,59 +18,64 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import random
+import os
+import re
+import sys
+import time
 import uuid
+import random
+from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Optional, Any
+from typing import Optional
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
+import httpx
+from fastapi import FastAPI, Header, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
+# ─── DB (optional) ────────────────────────────────────────────────────────────
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
+try:
+    import database.db as db
+    _db_available = True
+except Exception as _db_err:
+    _db_available = False
+
+    class _NullDB:
+        _pool = None
+        async def init_db(self): pass
+        async def get_player(self, *a): return None
+        async def create_or_update_nick(self, *a): raise ValueError("DB not available")
+        async def record_match(self, *a): pass
+        async def get_ranking(self, *a): return []
+
+    db = _NullDB()  # type: ignore
+
+# ─── Logging ──────────────────────────────────────────────────────────────────
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger(__name__)
 
-API_DESCRIPTION = """
-Servidor de signaling e matchmaking para o jogo 6/7 Counter multiplayer local.
-A interface principal de documentação desta API é gerada via **ReDoc**.
+# ─── Lifespan ─────────────────────────────────────────────────────────────────
 
-## 🔌 WebSockets
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    if os.environ.get("DATABASE_URL"):
+        try:
+            await db.init_db()
+            log.info("Database initialized.")
+        except Exception as e:
+            log.warning("Database init failed: %s", e)
+    yield
 
-Como o formato OpenAPI (base do ReDoc) é focado nativamente em HTTP, detalhamos abaixo o funcionamento dos endpoints WebSocket em tempo real para o jogo.
-
-### 1. Matchmaking (`WS /queue`)
-Ao se conectar, o cliente entra em uma fila aguardando outro jogador.
-
-**Eventos Recebidos (do Servidor):**
-- `{"type": "waiting"}`: Cliente entrou na fila e está aguardando par.
-- `{"type": "matched", "roomId": "..."}`: Par encontrado. O cliente deve navegar e reconectar no endpoint da sala (`/room/{roomId}`).
-
-### 2. Sala de Jogo (`WS /room/{room_id}`)
-Responsável pela troca de sinalização WebRTC e sincronização de estado (como a pontuação). 
-O limite da sala é estritamente de 2 conexões simultâneas.
-
-**Eventos Recebidos (do Servidor):**
-- `{"type": "start_offer"}`: Indica que os dois jogadores conectaram. O primeiro a chegar na sala (slot 0) recebe este sinal para iniciar o processo WebRTC criando a oferta (SDP Offer).
-- `{"type": "offer", "sdp": {...}}`: Oferta WebRTC gerada pelo oponente.
-- `{"type": "answer", "sdp": {...}}`: Resposta WebRTC gerada pelo oponente.
-- `{"type": "ice", "candidate": {...}}`: Candidato ICE (rota de rede) do oponente.
-- `{"type": "opponent_count", "value": 1}`: Oponente pontuou/atualizou seu contador.
-- `{"type": "opponent_left"}`: Oponente perdeu a conexão ou fechou a sala.
-
-**Eventos Enviados (para o Servidor):**
-- `{"type": "offer", "sdp": {...}}`: Enviar oferta WebRTC local.
-- `{"type": "answer", "sdp": {...}}`: Enviar resposta WebRTC local.
-- `{"type": "ice", "candidate": {...}}`: Enviar candidato ICE local.
-- `{"type": "count", "value": 1}`: Enviar contagem local atual.
-"""
 
 app = FastAPI(
     title="6/7 Counter Signaling Server",
-    description=API_DESCRIPTION,
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -79,21 +87,70 @@ app.add_middleware(
 
 # ─── State ────────────────────────────────────────────────────────────────────
 
-# Queue: list of websockets waiting for a match
 queue: list[WebSocket] = []
-
-# Rooms: room_id -> list of connected WebSockets (max 2)
 rooms: dict[str, list[WebSocket]] = {}
-
-# Grace-period tasks: room_id -> asyncio Task cleaning up the room after delay
 _cleanup_tasks: dict[str, asyncio.Task] = {}
-
-# Last known score per player: room_id -> {id(ws): count}
 room_scores: dict[str, dict[int, int]] = {}
-
-# Match timer tasks: room_id -> asyncio Task running the countdown + game clock
 _match_tasks: dict[str, asyncio.Task] = {}
 
+# id(ws) -> {clerk_user_id, nick}  — populated in queue_endpoint
+player_info: dict[int, dict] = {}
+
+# room_id -> [{clerk_user_id, nick}, ...]  — set at match time, used by match_timer
+room_player_info: dict[str, list[dict]] = {}
+
+# ─── Clerk JWT helpers ────────────────────────────────────────────────────────
+
+_jwks_cache: tuple[dict, float] | None = None
+_JWKS_TTL = 3600.0
+
+
+async def _get_jwks() -> dict:
+    global _jwks_cache
+    now = time.monotonic()
+    if _jwks_cache and now - _jwks_cache[1] < _JWKS_TTL:
+        return _jwks_cache[0]
+    secret = os.environ.get("CLERK_SECRET_KEY", "")
+    if not secret:
+        return {}
+    async with httpx.AsyncClient(timeout=10) as client:
+        r = await client.get(
+            "https://api.clerk.com/v1/jwks",
+            headers={"Authorization": f"Bearer {secret}"},
+        )
+        r.raise_for_status()
+        jwks = r.json()
+    _jwks_cache = (jwks, now)
+    return jwks
+
+
+async def verify_clerk_token(token: str) -> str:
+    from jose import jwt as jose_jwt, JWTError
+
+    if not os.environ.get("CLERK_SECRET_KEY"):
+        raise ValueError("Clerk not configured")
+    jwks = await _get_jwks()
+    header = jose_jwt.get_unverified_header(token)
+    key = next((k for k in jwks.get("keys", []) if k.get("kid") == header.get("kid")), None)
+    if not key:
+        _jwks_cache_clear()
+        raise ValueError("JWKS key not found")
+    try:
+        claims = jose_jwt.decode(token, key, algorithms=["RS256"], options={"verify_aud": False})
+        return claims["sub"]
+    except JWTError as e:
+        raise ValueError(f"Invalid token: {e}")
+
+
+def _jwks_cache_clear():
+    global _jwks_cache
+    _jwks_cache = None
+
+
+def _auth_header(authorization: Optional[str]) -> str:
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(401, "Missing or invalid Authorization header")
+    return authorization[len("Bearer "):]
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -111,22 +168,15 @@ async def relay_to_opponent(room_id: str, sender: WebSocket, msg: dict) -> None:
 
 
 CODECON_TERMS = [
-    "bartolomeu_cansado",
-    "deploy_na_sexta",
-    "cafe_com_bug",
-    "build_quebrado",
-    "merge_conflict",
-    "senior_sem_cafe",
-    "gambiarra_funcional",
-    "git_commit_force",
+    "bartolomeu_cansado", "deploy_na_sexta", "cafe_com_bug",
+    "build_quebrado", "merge_conflict", "senior_sem_cafe",
+    "gambiarra_funcional", "git_commit_force",
 ]
 
-def make_room_id() -> str:
-    """Generate a long, hard-to-guess room ID prefixed with a Codecon meme."""
-    prefix = random.choice(CODECON_TERMS)
-    # Two UUIDs concatenated = 256 bits of randomness
-    return f"{prefix}_{uuid.uuid4().hex}{uuid.uuid4().hex}"
 
+def make_room_id() -> str:
+    prefix = random.choice(CODECON_TERMS)
+    return f"{prefix}_{uuid.uuid4().hex}{uuid.uuid4().hex}"
 
 # ─── Match timer ──────────────────────────────────────────────────────────────
 
@@ -141,7 +191,7 @@ async def match_timer(room_id: str) -> None:
             await asyncio.sleep(1)
 
         await broadcast({"type": "game_start"})
-        log.info("Sala %s... PARTIDA INICIADA! 67 segundos de pura adrenalina.", room_id[:16])
+        log.info("Sala %s... PARTIDA INICIADA!", room_id[:16])
 
         for i in range(67, -1, -1):
             await broadcast({"type": "tick", "remaining": i})
@@ -155,44 +205,119 @@ async def match_timer(room_id: str) -> None:
         if len(players) == 2:
             s0 = scores.get(id(players[0]), 0)
             s1 = scores.get(id(players[1]), 0)
-            if s0 > s1:
-                w0, w1 = "you", "opponent"
-            elif s1 > s0:
-                w0, w1 = "opponent", "you"
-            else:
-                w0 = w1 = "draw"
+            w0, w1 = ("you", "opponent") if s0 > s1 else (("opponent", "you") if s1 > s0 else ("draw", "draw"))
             await ws_send(players[0], {"type": "game_over", "your_score": s0, "opponent_score": s1, "winner": w0})
             await ws_send(players[1], {"type": "game_over", "your_score": s1, "opponent_score": s0, "winner": w1})
-            log.info("Sala %s... game over! Scores: %d vs %d", room_id[:16], s0, s1)
+            log.info("Sala %s game over: %d vs %d", room_id[:16], s0, s1)
+
+            # Persist match result
+            pinfos = room_player_info.get(room_id, [])
+            if len(pinfos) == 2:
+                uid_a = pinfos[0].get("clerk_user_id")
+                uid_b = pinfos[1].get("clerk_user_id")
+                if uid_a and uid_b:
+                    try:
+                        await db.record_match(uid_a, uid_b, s0, s1)
+                    except Exception as e:
+                        log.warning("record_match failed: %s", e)
 
     except asyncio.CancelledError:
-        log.info("Timer da sala %s... cancelado (jogador saiu antes do fim).", room_id[:16])
+        log.info("Timer da sala %s cancelado.", room_id[:16])
     finally:
         _match_tasks.pop(room_id, None)
 
+# ─── REST endpoints ───────────────────────────────────────────────────────────
+
+class NickRequest(BaseModel):
+    nick: str
+
+
+@app.get("/me")
+async def me_endpoint(authorization: Optional[str] = Header(default=None)):
+    token = _auth_header(authorization)
+    try:
+        clerk_user_id = await verify_clerk_token(token)
+    except ValueError as e:
+        raise HTTPException(401, str(e))
+    player = await db.get_player(clerk_user_id)
+    if not player:
+        return {"clerk_user_id": clerk_user_id, "nick": None}
+    return player
+
+
+@app.post("/nick")
+async def nick_endpoint(body: NickRequest, authorization: Optional[str] = Header(default=None)):
+    token = _auth_header(authorization)
+    try:
+        clerk_user_id = await verify_clerk_token(token)
+    except ValueError as e:
+        raise HTTPException(401, str(e))
+    nick = body.nick.strip()
+    if not re.match(r"^\S{3,20}$", nick):
+        raise HTTPException(400, "Nick must be 3–20 chars without spaces")
+    try:
+        player = await db.create_or_update_nick(clerk_user_id, nick)
+        return player
+    except ValueError:
+        raise HTTPException(409, "Nick already taken")
+
+
+@app.get("/ranking")
+async def ranking_endpoint():
+    rows = await db.get_ranking(10)
+    return rows
+
+
+@app.get("/health")
+async def health():
+    return {"status": "ok", "queue_size": len(queue), "active_rooms": len(rooms)}
 
 # ─── Queue endpoint ───────────────────────────────────────────────────────────
 
 @app.websocket("/queue")
 async def queue_endpoint(ws: WebSocket):
     await ws.accept()
-    # Generate a Codecon player nick
-    player_id = f"{random.choice(CODECON_TERMS)}_{uuid.uuid4().hex[:4]}"
-    log.info("Dev %s abriu um PR para a fila de matchmaking (fila antes: %d)", player_id, len(queue))
 
-    # If someone is already waiting, match them
+    # Identify: expect {type: 'identify', clerk_token: '...'}
+    clerk_user_id: str | None = None
+    nick = "anon"
+    try:
+        raw = await asyncio.wait_for(ws.receive_text(), timeout=5.0)
+        msg = json.loads(raw)
+        if msg.get("type") == "identify" and msg.get("clerk_token"):
+            clerk_user_id = await verify_clerk_token(msg["clerk_token"])
+            player = await db.get_player(clerk_user_id)
+            if player and player.get("nick"):
+                nick = player["nick"]
+            elif player is None:
+                # User exists in Clerk but not in DB yet — needs to set nick first
+                clerk_user_id = None
+    except Exception:
+        pass
+
+    if not clerk_user_id:
+        await ws.close(code=1008, reason="Authentication required or nick not set")
+        return
+
+    player_info[id(ws)] = {"clerk_user_id": clerk_user_id, "nick": nick}
+    log.info("Player %s (%s) joined queue (size before: %d)", nick, clerk_user_id[:8], len(queue))
+
     if queue:
         opponent = queue.pop(0)
         room_id = make_room_id()
-        rooms[room_id] = []  # pre-create so the room exists before clients connect
+        rooms[room_id] = []
 
-        log.info("Bartolomeu encontrou um par! Merge aceito, criando sala [%s] para os devs.", room_id[:16])
+        opp_info = player_info.get(id(opponent), {})
+        opp_nick = opp_info.get("nick", "anon")
 
-        # Tell both players to navigate to the room
-        await ws_send(opponent, {"type": "matched", "roomId": room_id, "role": "offerer"})
-        await ws_send(ws,       {"type": "matched", "roomId": room_id, "role": "answerer"})
+        # Store player identities for this room (used by match_timer for record_match)
+        room_player_info[room_id] = [opp_info, player_info[id(ws)]]
 
-        # Close the queue connections — players will reconnect via /room/{room_id}
+        log.info("Match found! Room %s: %s vs %s", room_id[:16], opp_nick, nick)
+        await ws_send(opponent, {"type": "matched", "roomId": room_id, "role": "offerer", "opp_nick": nick})
+        await ws_send(ws,       {"type": "matched", "roomId": room_id, "role": "answerer", "opp_nick": opp_nick})
+
+        player_info.pop(id(ws), None)
         try:
             await opponent.close()
         except Exception:
@@ -203,49 +328,43 @@ async def queue_endpoint(ws: WebSocket):
             pass
         return
 
-    # Otherwise wait in the queue
     queue.append(ws)
     await ws_send(ws, {"type": "waiting"})
-    log.info("Dev %s está na fila tomando um café e esperando o CI/CD parear...", player_id)
+    log.info("Player %s waiting in queue...", nick)
 
     try:
-        # Keep the connection alive until matched or disconnected
         async for _ in ws.iter_text():
-            pass  # no messages expected while queuing
+            pass
     except WebSocketDisconnect:
-        log.info("Dev %s deu ctrl+c na fila e foi resolver bug no StackOverflow", player_id)
+        log.info("Player %s left queue.", nick)
     finally:
         if ws in queue:
             queue.remove(ws)
-
+        player_info.pop(id(ws), None)
 
 # ─── Room endpoint ────────────────────────────────────────────────────────────
 
 @app.websocket("/room/{room_id}")
 async def room_endpoint(ws: WebSocket, room_id: str):
-    # Validate room exists
     if room_id not in rooms:
         await ws.close(code=4004, reason="Room not found")
         return
-
-    # Enforce max 2 players
     if len(rooms[room_id]) >= 2:
         await ws.close(code=4003, reason="Room is full")
         return
 
     await ws.accept()
     rooms[room_id].append(ws)
-    slot = len(rooms[room_id])  # 1 or 2
-    log.info("Dev conectou ao localhost da sala %s... (%d/2)", room_id[:16], slot)
+    slot = len(rooms[room_id])
+    log.info("Player connected to room %s (%d/2)", room_id[:16], slot)
 
-    # Once both players are in, tell the offerer to start and kick off the match timer
     if len(rooms[room_id]) == 2:
         offerer = rooms[room_id][0]
         await ws_send(offerer, {"type": "start_offer"})
-        log.info("Sala %s... lotada! Sem merge conflicts. Iniciando compilador de gestos 6/7. Sem deploy na sexta!", room_id[:16])
         room_scores[room_id] = {}
         task = asyncio.create_task(match_timer(room_id))
         _match_tasks[room_id] = task
+        log.info("Room %s full — match timer started.", room_id[:16])
 
     try:
         async for raw in ws.iter_text():
@@ -257,122 +376,59 @@ async def room_endpoint(ws: WebSocket, room_id: str):
             msg_type = msg.get("type", "")
 
             if msg_type in ("offer", "answer", "ice"):
-                # WebRTC signaling relay
                 await relay_to_opponent(room_id, ws, msg)
-
             elif msg_type == "count":
                 room_scores.setdefault(room_id, {})[id(ws)] = msg.get("value", 0)
-                await relay_to_opponent(
-                    room_id, ws,
-                    {"type": "opponent_count", "value": msg.get("value", 0)},
-                )
-
+                await relay_to_opponent(room_id, ws, {"type": "opponent_count", "value": msg.get("value", 0)})
             elif msg_type == "reset":
                 await relay_to_opponent(room_id, ws, {"type": "opponent_reset"})
-
             else:
                 log.warning("Unknown message type in room: %s", msg_type)
 
     except WebSocketDisconnect:
-        log.info("Um dos devs dropou a conexão na sala %s... Deve ter dado NullPointerException ou falta de café!", room_id[:16])
+        log.info("Player disconnected from room %s.", room_id[:16])
     finally:
         if ws in rooms.get(room_id, []):
             rooms[room_id].remove(ws)
 
-        # Cancel match timer when any player leaves mid-game
         if room_id in _match_tasks:
             _match_tasks[room_id].cancel()
 
-        # Notify opponent
         for peer in rooms.get(room_id, []):
             await ws_send(peer, {"type": "opponent_left"})
 
-    async def _maybe_destroy(room_id: str) -> None:
-        """Destroy room only if still empty after a short grace period."""
+    async def _maybe_destroy(rid: str) -> None:
         await asyncio.sleep(5)
-        if not rooms.get(room_id):
-            rooms.pop(room_id, None)
-            room_scores.pop(room_id, None)
-            log.info("Sala %s... destruída com sucesso! Garbage Collector limpou o Bartolomeu da memória RAM.", room_id[:16])
-        _cleanup_tasks.pop(room_id, None)
+        if not rooms.get(rid):
+            rooms.pop(rid, None)
+            room_scores.pop(rid, None)
+            room_player_info.pop(rid, None)
+            log.info("Room %s destroyed.", rid[:16])
+        _cleanup_tasks.pop(rid, None)
 
-    # Destroy empty rooms (with grace period so reconnects don't kill the room)
     if not rooms.get(room_id):
-        # Cancel any existing cleanup task for this room
         if room_id in _cleanup_tasks:
             _cleanup_tasks[room_id].cancel()
-        task = asyncio.create_task(_maybe_destroy(room_id))
-        _cleanup_tasks[room_id] = task
+        _cleanup_tasks[room_id] = asyncio.create_task(_maybe_destroy(room_id))
 
 
-# ─── Health check ──────────────────────────────────────────────────────────────
-
-@app.get("/health", tags=["Monitoramento"], summary="Health Check do Servidor")
-async def health():
-    """
-    Retorna o status atual do servidor e métricas de utilização.
-    
-    ### Retorno:
-    - **status**: Estado do servidor (ex: "ok").
-    - **queue_size**: Quantidade de jogadores na fila aguardando matchmaking.
-    - **active_rooms**: Quantidade de salas ativas atualmente alocadas na memória.
-    """
-    return {
-        "status": "ok",
-        "queue_size": len(queue),
-        "active_rooms": len(rooms),
-    }
-
-
-
-
-# ─── Documentação Swagger para WebSockets ──────────────────────────────────────
+# ─── WebSocket docs (Swagger stubs) ───────────────────────────────────────────
 
 class QueueResponse(BaseModel):
-    type: str = Field(..., description="Tipo do evento: 'waiting' ou 'matched'")
-    roomId: Optional[str] = Field(None, description="UUID da sala gerada (presente apenas se type='matched')")
-    role: Optional[str] = Field(None, description="Role do jogador (offerer ou answerer)")
+    type: str = Field(..., description="'waiting' ou 'matched'")
+    roomId: Optional[str] = Field(None)
+    role: Optional[str] = Field(None)
 
 class RoomMessageSchema(BaseModel):
-    type: str = Field(..., description="Tipo do evento ('offer', 'answer', 'ice', 'count', 'start_offer', 'opponent_count', 'opponent_left')")
-    sdp: Optional[dict] = Field(None, description="Objeto SDP do WebRTC (para offer/answer)")
-    candidate: Optional[dict] = Field(None, description="Objeto ICE Candidate do WebRTC")
-    value: Optional[int] = Field(None, description="Valor do contador (para eventos de contagem)")
+    type: str = Field(...)
+    sdp: Optional[dict] = Field(None)
+    candidate: Optional[dict] = Field(None)
+    value: Optional[int] = Field(None)
 
-@app.get("/queue", tags=["WebSockets (Documentação)"], summary="Fila de Matchmaking", response_model=QueueResponse)
+@app.get("/queue", tags=["WebSockets (Documentação)"], response_model=QueueResponse)
 async def _docs_queue():
-    """
-    **⚠️ ATENÇÃO: Endpoint WebSocket! Não use GET/POST HTTP.**
+    raise HTTPException(status_code=426, detail="Use WebSocket")
 
-    Utilize um cliente WebSocket (ex: `new WebSocket("wss://<ip>/queue")`) para conectar.
-    
-    ### Fluxo:
-    1. Cliente conecta.
-    2. Servidor envia `{"type": "waiting"}` se não houver ninguém na fila.
-    3. Quando um oponente conectar, o servidor envia `{"type": "matched", "roomId": "uuid..."}` para ambos.
-    """
-    raise HTTPException(status_code=426, detail="Upgrade Required - Use WebSocket para conectar aqui.")
-
-@app.get("/room/{room_id}", tags=["WebSockets (Documentação)"], summary="Sala de Jogo Multiplayer", response_model=RoomMessageSchema)
+@app.get("/room/{room_id}", tags=["WebSockets (Documentação)"], response_model=RoomMessageSchema)
 async def _docs_room(room_id: str):
-    """
-    **⚠️ ATENÇÃO: Endpoint WebSocket! Não use GET/POST HTTP.**
-
-    Utilize um cliente WebSocket (ex: `new WebSocket("wss://<ip>/room/{room_id}")`) para conectar.
-    O `room_id` é o UUID recebido no endpoint `/queue`. O limite da sala é de 2 pessoas.
-    
-    ### O que você pode enviar (JSON):
-    - `{"type": "offer", "sdp": {...}}`
-    - `{"type": "answer", "sdp": {...}}`
-    - `{"type": "ice", "candidate": {...}}`
-    - `{"type": "count", "value": 5}`
-
-    ### O que você pode receber (JSON):
-    - `{"type": "start_offer"}` -> Você foi escolhido pelo servidor para gerar o SDP Offer WebRTC.
-    - `{"type": "offer", "sdp": {...}}` -> Oferta do oponente.
-    - `{"type": "answer", "sdp": {...}}` -> Resposta do oponente.
-    - `{"type": "ice", "candidate": {...}}` -> Candidato de rede do oponente.
-    - `{"type": "opponent_count", "value": 5}` -> O oponente incrementou a contagem dele.
-    - `{"type": "opponent_left"}` -> Oponente fechou o navegador ou caiu.
-    """
-    raise HTTPException(status_code=426, detail="Upgrade Required - Use WebSocket para conectar aqui.")
+    raise HTTPException(status_code=426, detail="Use WebSocket")

@@ -4,26 +4,37 @@ export type QueueStatus = 'idle' | 'connecting' | 'waiting' | 'matched' | 'error
 
 interface UseQueueOptions {
   serverUrl?: string
+  getToken: () => Promise<string | null>
   onMatched: (roomId: string, role: 'offerer' | 'answerer') => void
 }
 
 export function useQueue({
   serverUrl = `ws://${import.meta.env.VITE_SERVER_URL}/queue`,
+  getToken,
   onMatched,
 }: UseQueueOptions) {
   const [status, setStatus] = useState<QueueStatus>('idle')
   const wsRef = useRef<WebSocket | null>(null)
   const onMatchedRef = useRef(onMatched)
   onMatchedRef.current = onMatched
+  const getTokenRef = useRef(getToken)
+  getTokenRef.current = getToken
 
-  const join = useCallback(() => {
+  const join = useCallback(async () => {
     if (wsRef.current) return
     setStatus('connecting')
+
+    const token = await getTokenRef.current()
+    if (!token) {
+      setStatus('error')
+      return
+    }
 
     const ws = new WebSocket(serverUrl)
     wsRef.current = ws
 
     ws.onopen = () => {
+      ws.send(JSON.stringify({ type: 'identify', clerk_token: token }))
       setStatus('waiting')
     }
 

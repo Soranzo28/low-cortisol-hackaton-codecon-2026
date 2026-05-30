@@ -31,9 +31,10 @@ interface CoverTransform {
   W: number; H: number; vw: number; vh: number; scale: number; offsetX: number; offsetY: number
 }
 
-function computeTransform(video: HTMLVideoElement): CoverTransform {
-  const W = window.innerWidth
-  const H = window.innerHeight
+function computeTransform(video: HTMLVideoElement, canvas: HTMLCanvasElement): CoverTransform {
+  // Use the DOM-rendered size of the canvas (which matches the video container)
+  const W = canvas.clientWidth || video.clientWidth
+  const H = canvas.clientHeight || video.clientHeight
   const vw = video.videoWidth || W
   const vh = video.videoHeight || H
   const scale = Math.max(W / vw, H / vh)
@@ -143,8 +144,9 @@ function drawDebug(
   const ctx = canvas.getContext('2d')
   if (!ctx) return
 
-  canvas.width = t.W
-  canvas.height = t.H
+  // Sync canvas buffer to its DOM-rendered size
+  if (canvas.width !== t.W) canvas.width = t.W
+  if (canvas.height !== t.H) canvas.height = t.H
   ctx.clearRect(0, 0, t.W, t.H)
 
   drawThresholdLines(
@@ -250,6 +252,22 @@ export function useGestureDetector(
   useEffect(() => {
     if (status !== 'ready' && status !== 'detecting') return
 
+    const canvas = canvasRef.current
+
+    // Keep canvas buffer dimensions in sync with its DOM-rendered size
+    let observer: ResizeObserver | null = null
+    if (canvas) {
+      const syncSize = () => {
+        const w = canvas.clientWidth
+        const h = canvas.clientHeight
+        if (canvas.width !== w) canvas.width = w
+        if (canvas.height !== h) canvas.height = h
+      }
+      syncSize()
+      observer = new ResizeObserver(syncSize)
+      observer.observe(canvas)
+    }
+
     function handleLowVis() {
       const now = Date.now()
       if (lowVisStartRef.current === 0) {
@@ -274,7 +292,7 @@ export function useGestureDetector(
       if (result.landmarks.length > 0) {
         setStatus('detecting')
         const lms = result.landmarks[0]
-        const t = computeTransform(video)
+        const t = computeTransform(video, canvasRef.current!)
 
         const topY = TOP_RATIO * t.H
         const bottomY = BOTTOM_RATIO * t.H
@@ -338,13 +356,15 @@ export function useGestureDetector(
         handleLowVis()
 
         if (canvasRef.current) {
-          const canvas = canvasRef.current
-          const ctx = canvas.getContext('2d')
+          const cvs = canvasRef.current
+          const ctx = cvs.getContext('2d')
           if (ctx) {
-            canvas.width = window.innerWidth
-            canvas.height = window.innerHeight
-            ctx.clearRect(0, 0, canvas.width, canvas.height)
-            drawThresholdLines(ctx, canvas.width, canvas.height, false, false, false)
+            const w = cvs.clientWidth
+            const h = cvs.clientHeight
+            if (cvs.width !== w) cvs.width = w
+            if (cvs.height !== h) cvs.height = h
+            ctx.clearRect(0, 0, w, h)
+            drawThresholdLines(ctx, w, h, false, false, false)
           }
         }
       }
@@ -354,7 +374,10 @@ export function useGestureDetector(
 
     detect()
 
-    return () => cancelAnimationFrame(animFrameRef.current)
+    return () => {
+      cancelAnimationFrame(animFrameRef.current)
+      observer?.disconnect()
+    }
   }, [status, videoRef, canvasRef])
 
   return { count, status }

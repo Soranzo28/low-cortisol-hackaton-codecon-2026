@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react'
+import { useRef, useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useGestureDetector } from '@/hooks/useGestureDetector'
 import { useMultiplayer } from '@/hooks/useMultiplayer'
@@ -39,6 +39,26 @@ export default function RoomPage() {
     }
   }, [mpStatus, navigate])
 
+  // Camera readiness — show spinner until video stream is playing
+  const [cameraReady, setCameraReady] = useState(false)
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video) return
+
+    const onReady = () => {
+      if (video.readyState >= 2) setCameraReady(true)
+    }
+
+    // Already ready (e.g. hot-reload)
+    if (video.readyState >= 2) {
+      setCameraReady(true)
+      return
+    }
+
+    video.addEventListener('loadeddata', onReady)
+    return () => video.removeEventListener('loadeddata', onReady)
+  }, [])
+
   return (
     <div
       style={{
@@ -49,35 +69,81 @@ export default function RoomPage() {
         background: '#000',
       }}
     >
-      {/* ── Local video (left half when matched, full when waiting) ─────────── */}
-      <video
-        ref={videoRef}
-        autoPlay
-        playsInline
-        muted
+      {/* ── Local video container (left half when matched, full when waiting) ── */}
+      <div
         style={{
+          position: 'relative',
           width: isMatched ? '50%' : '100%',
           height: '100vh',
-          objectFit: 'cover',
-          display: 'block',
+          overflow: 'hidden',
           transition: 'width 0.3s ease',
         }}
-      />
+      >
+        {/* Camera loading spinner */}
+        {!cameraReady && (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              zIndex: 10,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '1rem',
+              background: '#111',
+            }}
+          >
+            <div
+              style={{
+                width: 40,
+                height: 40,
+                border: '4px solid rgba(99,102,241,0.25)',
+                borderTop: '4px solid #818cf8',
+                borderRadius: '50%',
+                animation: 'spin 0.9s linear infinite',
+              }}
+            />
+            <span
+              style={{
+                color: 'rgba(255,255,255,0.7)',
+                fontSize: '0.9rem',
+                fontWeight: 600,
+                fontFamily: "'Inter', sans-serif",
+              }}
+            >
+              Carregando câmera…
+            </span>
+          </div>
+        )}
 
-      {/* ── Skeleton overlay (constrained to left half when matched) ─────────── */}
-      <canvas
-        ref={canvasRef}
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          width: isMatched ? '50%' : '100%',
-          height: '100vh',
-          pointerEvents: 'none',
-          zIndex: 5,
-          transition: 'width 0.3s ease',
-        }}
-      />
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          muted
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            display: 'block',
+          }}
+        />
+
+        {/* ── Skeleton overlay ───────────────────────────────────────────────── */}
+        <canvas
+          ref={canvasRef}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            pointerEvents: 'none',
+            zIndex: 5,
+          }}
+        />
+      </div>
 
       {/* ── Local counter ────────────────────────────────────────────────────── */}
       <Counter count={count} side={isMatched ? 'left' : 'center'} />

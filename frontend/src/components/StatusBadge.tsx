@@ -8,14 +8,15 @@ const labels: Record<DetectionStatus, string> = {
 
 interface StatusBadgeProps {
   status: DetectionStatus
+  isMobile?: boolean
 }
 
-export function StatusBadge({ status }: StatusBadgeProps) {
+export function StatusBadge({ status, isMobile = false }: StatusBadgeProps) {
   return (
     <div
       style={{
         position: 'absolute',
-        bottom: '1.5rem',
+        ...(isMobile ? { top: '1rem' } : { bottom: '1.5rem' }),
         left: '50%',
         transform: 'translateX(-50%)',
         zIndex: 10,

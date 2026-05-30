@@ -44,10 +44,15 @@ export default function Home() {
         <div className="w-full flex flex-col gap-3">
           {!isQueuing && status !== 'matched' && (
             <>
+              {/* Camera permission notice */}
+              <p className="text-xs text-neutral-500 text-center px-1 -mb-1">
+                Este jogo usa sua câmera para detectar gestos. Permita o acesso quando solicitado.
+              </p>
+
               {/* Primary Action - High Contrast */}
               <button
                 onClick={join}
-                className="w-full h-14 rounded-2xl bg-white text-black font-semibold text-lg tracking-tight transition-transform active:scale-[0.98] active:bg-neutral-200 flex items-center justify-center gap-2 shadow-[0_0_40px_-10px_rgba(255,255,255,0.3)]"
+                className="w-full h-16 md:h-14 rounded-2xl bg-white text-black font-semibold text-lg tracking-tight transition-transform active:scale-[0.98] active:bg-neutral-200 flex items-center justify-center gap-2 shadow-[0_0_40px_-10px_rgba(255,255,255,0.3)]"
               >
                 Encontrar Partida
               </button>
@@ -55,14 +60,14 @@ export default function Home() {
               {/* Secondary Actions - Ghost outline */}
               <a
                 href="#"
-                className="w-full h-14 rounded-2xl bg-neutral-900/50 border border-neutral-800 text-neutral-300 font-medium tracking-tight transition-colors hover:bg-neutral-800 hover:text-white flex items-center justify-center"
+                className="w-full h-16 md:h-14 rounded-2xl bg-neutral-900/50 border border-neutral-800 text-neutral-300 font-medium tracking-tight transition-colors hover:bg-neutral-800 hover:text-white flex items-center justify-center"
               >
                 Jogar Local
               </a>
 
               <a
                 href="#"
-                className="w-full h-14 rounded-2xl bg-neutral-900/50 border border-neutral-800 text-neutral-300 font-medium tracking-tight transition-colors hover:bg-neutral-800 hover:text-white flex items-center justify-center"
+                className="w-full h-16 md:h-14 rounded-2xl bg-neutral-900/50 border border-neutral-800 text-neutral-300 font-medium tracking-tight transition-colors hover:bg-neutral-800 hover:text-white flex items-center justify-center"
               >
                 Sobre
               </a>

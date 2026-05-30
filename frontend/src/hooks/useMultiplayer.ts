@@ -28,6 +28,7 @@ interface UseMultiplayerReturn {
   countdown: number | null
   remaining: number | null
   gameOver: GameOverData | null
+  latencyMs: number | null
 }
 
 const ICE_SERVERS = [
@@ -46,6 +47,7 @@ export function useMultiplayer({
   const [countdown, setCountdown] = useState<number | null>(null)
   const [remaining, setRemaining] = useState<number | null>(null)
   const [gameOver, setGameOver] = useState<GameOverData | null>(null)
+  const [latencyMs, setLatencyMs] = useState<number | null>(null)
 
   const wsRef = useRef<WebSocket | null>(null)
   const pcRef = useRef<RTCPeerConnection | null>(null)
@@ -216,6 +218,25 @@ export function useMultiplayer({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomWsUrl])
 
+  // ── RTT latency polling via WebRTC stats ──────────────────────────────────
+  useEffect(() => {
+    if (status !== 'matched') return
+    const poll = async () => {
+      if (!pcRef.current) return
+      try {
+        const stats = await pcRef.current.getStats()
+        stats.forEach((report: any) => {
+          if (report.type === 'candidate-pair' && report.state === 'succeeded' && report.currentRoundTripTime != null) {
+            setLatencyMs(Math.round(report.currentRoundTripTime * 1000))
+          }
+        })
+      } catch { /* ignore */ }
+    }
+    poll()
+    const id = setInterval(poll, 2000)
+    return () => clearInterval(id)
+  }, [status])
+
   // ── relay count only while game is active ──────────────────────────────────
   useEffect(() => {
     if (status !== 'matched') return
@@ -225,5 +246,5 @@ export function useMultiplayer({
     send({ type: 'count', value: localCount })
   }, [localCount, status, remaining, gameOver, send])
 
-  return { status, opponentCount, countdown, remaining, gameOver }
+  return { status, opponentCount, countdown, remaining, gameOver, latencyMs }
 }

@@ -8,7 +8,7 @@ interface UseQueueOptions {
 }
 
 export function useQueue({
-  serverUrl = `ws://${window.location.hostname}:8765/queue`,
+  serverUrl = `ws://${import.meta.env.VITE_SERVER_URL}/queue`,
   onMatched,
 }: UseQueueOptions) {
   const [status, setStatus] = useState<QueueStatus>('idle')

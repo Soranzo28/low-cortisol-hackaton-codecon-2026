@@ -1,7 +1,7 @@
 import { useQueue } from '@/hooks/useQueue'
 import { useEffect } from 'react'
 
-const SERVER = import.meta.env.VITE_SERVER_URL ?? `${window.location.hostname}:8765`
+const SERVER = import.meta.env.VITE_SERVER_URL
 const WS_PROTO = window.location.protocol === 'https:' ? 'wss' : 'ws'
 
 export default function Home() {

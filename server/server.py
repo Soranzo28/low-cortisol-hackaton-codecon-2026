@@ -7,7 +7,7 @@ Endpoints:
   WS   /room/{room_id}       — sala de jogo (máx 2 jogadores); relay WebRTC + contagens
 
 Rodar:
-    python -m uvicorn server:app --host 0.0.0.0 --port 8765 --reload
+    python -m uvicorn server:app --host 0.0.0.0 --port 8765 --reload --ssl-certfile cert.pem --ssl-keyfile key.pem
 """
 
 from __future__ import annotations

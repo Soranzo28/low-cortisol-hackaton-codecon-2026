@@ -45,6 +45,11 @@ export function useQueue({
           setStatus('waiting')
         } else if (msg.type === 'matched') {
           setStatus('matched')
+          sessionStorage.setItem('match_context', JSON.stringify({
+            myScore: msg.your_score ?? 0,
+            oppScore: msg.opp_score ?? 0,
+            oppNick: msg.opp_nick ?? 'Adversário',
+          }))
           onMatchedRef.current(msg.roomId as string, msg.role as 'offerer' | 'answerer')
         }
       } catch {

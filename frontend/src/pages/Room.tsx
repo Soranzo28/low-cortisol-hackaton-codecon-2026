@@ -19,10 +19,25 @@ function useIsMobile() {
   return v
 }
 
+interface MatchContext {
+  myScore: number
+  oppScore: number
+  oppNick: string
+}
+
+function loadMatchContext(): MatchContext {
+  try {
+    const raw = sessionStorage.getItem('match_context')
+    if (raw) return JSON.parse(raw) as MatchContext
+  } catch { /* ignore */ }
+  return { myScore: 0, oppScore: 0, oppNick: 'Adversário' }
+}
+
 export default function RoomPage() {
   const { roomId } = useParams<{ roomId: string }>()
   const navigate = useNavigate()
   const isMobile = useIsMobile()
+  const matchCtx = loadMatchContext()
 
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -105,7 +120,7 @@ export default function RoomPage() {
         {isMatched && (
           <PlayerInfoOverlay
             name="Você"
-            rankingPoints={0}
+            rankingPoints={matchCtx.myScore}
             score={gameCount}
             latencyMs={latencyMs}
           />
@@ -126,6 +141,8 @@ export default function RoomPage() {
           opponentCount={opponentCount}
           latencyMs={latencyMs}
           isMobile={isMobile}
+          oppNick={matchCtx.oppNick}
+          oppRankingScore={matchCtx.oppScore}
         />
       )}
 

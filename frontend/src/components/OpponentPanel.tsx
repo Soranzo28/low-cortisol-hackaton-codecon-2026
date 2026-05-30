@@ -5,9 +5,11 @@ interface OpponentPanelProps {
   opponentCount: number
   latencyMs: number | null
   isMobile: boolean
+  oppNick?: string
+  oppRankingScore?: number
 }
 
-export function OpponentPanel({ remoteVideoRef, opponentCount, latencyMs, isMobile }: OpponentPanelProps) {
+export function OpponentPanel({ remoteVideoRef, opponentCount, latencyMs, isMobile, oppNick = 'Adversário', oppRankingScore = 0 }: OpponentPanelProps) {
   const panelStyle: React.CSSProperties = isMobile
     ? {
         position: 'absolute',
@@ -48,13 +50,13 @@ export function OpponentPanel({ remoteVideoRef, opponentCount, latencyMs, isMobi
         }}
       />
 
-      {/* Top-left: Adversário (0000) */}
+      {/* Top-left: nick (score) */}
       <div style={playerNameStyle}>
         <span style={{ color: 'white', fontSize: '0.8rem', fontWeight: 600, fontFamily: "'Inter', sans-serif" }}>
-          Adversário
+          {oppNick}
         </span>
         <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.75rem', marginLeft: '0.3rem', fontFamily: "'Inter', sans-serif" }}>
-          (0000)
+          ({String(oppRankingScore).padStart(4, '0')})
         </span>
       </div>
 

@@ -35,9 +35,9 @@ from pydantic import BaseModel, Field
 
 # ─── DB (optional) ────────────────────────────────────────────────────────────
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent))
 try:
-    import database.db as db
+    import db
     _db_available = True
 except Exception as _db_err:
     _db_available = False

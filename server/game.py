@@ -12,9 +12,14 @@ from fastapi import WebSocket
 log = logging.getLogger(__name__)
 
 CODECON_TERMS = [
-    "bartolomeu_cansado", "deploy_na_sexta", "cafe_com_bug",
-    "build_quebrado", "merge_conflict", "senior_sem_cafe",
-    "gambiarra_funcional", "git_commit_force",
+    "bartolomeu_cansado",
+    "deploy_na_sexta",
+    "cafe_com_bug",
+    "build_quebrado",
+    "merge_conflict",
+    "senior_sem_cafe",
+    "gambiarra_funcional",
+    "git_commit_force",
 ]
 
 # ── State ──────────────────────────────────────────────────────────────────────
@@ -26,18 +31,23 @@ room_scores: dict[str, dict[int, int]] = {}
 _match_tasks: dict[str, asyncio.Task] = {}
 player_info: dict[int, dict] = {}
 room_player_info: dict[str, list[dict]] = {}
-room_state: dict[str, str] = {}       # room_id -> 'waiting' | 'in_progress' | 'finished'
-room_remaining: dict[str, int] = {}   # room_id -> seconds remaining in match
+# room_id -> 'waiting' | 'in_progress' | 'finished'
+room_state: dict[str, str] = {}
+room_remaining: dict[str, int] = {}  # room_id -> seconds remaining in match
 room_reconnect_tasks: dict[str, asyncio.Task] = {}
-room_ws_to_uid: dict[str, dict[int, str]] = {}  # room_id -> {id(ws): clerk_user_id}
+# room_id -> {id(ws): clerk_user_id}
+room_ws_to_uid: dict[str, dict[int, str]] = {}
 
 # ── Event state ────────────────────────────────────────────────────────────────
 
 room_event_tasks: dict[str, asyncio.Task] = {}
-room_event_trigger: dict[str, asyncio.Queue] = {}  # first event_complete signal wins
-room_event_bonus: dict[str, dict[str, int]] = {}   # {clerk_user_id: bonus_points}
+# first event_complete signal wins
+room_event_trigger: dict[str, asyncio.Queue] = {}
+# {clerk_user_id: bonus_points}
+room_event_bonus: dict[str, dict[str, int]] = {}
 
 # ── Transport helpers ──────────────────────────────────────────────────────────
+
 
 async def ws_send(ws: WebSocket, msg: dict) -> None:
     try:
@@ -59,12 +69,11 @@ def make_room_id() -> str:
 
 # ── Event coroutine ────────────────────────────────────────────────────────────
 
-async def fire_event(room_id: str) -> None:
-    # TODO: restore random timing — fixed at 10s for testing
-    delay = 10.0
+
+async def fire_event(room_id: str, delay: float) -> None:
     await asyncio.sleep(delay)
 
-    if room_state.get(room_id) != 'in_progress':
+    if room_state.get(room_id) != "in_progress":
         return
 
     event_id = random.choice(["absolute_cinema", "nerd_up"])
@@ -75,7 +84,9 @@ async def fire_event(room_id: str) -> None:
     room_event_trigger[room_id] = q
 
     for ws in rooms.get(room_id, []):
-        await ws_send(ws, {"type": "event_start", "event_id": event_id, "duration": duration})
+        await ws_send(
+            ws, {"type": "event_start", "event_id": event_id, "duration": duration}
+        )
     log.info("Room %s — event '%s' fired.", room_id[:16], event_id)
 
     winner_uid: str | None = None
@@ -90,17 +101,36 @@ async def fire_event(room_id: str) -> None:
 
     bonus = 15
     if winner_uid:
-        room_event_bonus[room_id] = {winner_uid: bonus}
+        bonuses = room_event_bonus.setdefault(room_id, {})
+        bonuses[winner_uid] = bonuses.get(winner_uid, 0) + bonus
         for ws in rooms.get(room_id, []):
-            await ws_send(ws, {"type": "event_winner", "winner_id": winner_uid, "bonus": bonus})
-        log.info("Room %s — event winner: %s (+%d)", room_id[:16], winner_uid[:8], bonus)
+            await ws_send(
+                ws, {"type": "event_winner", "winner_id": winner_uid, "bonus": bonus}
+            )
+        log.info(
+            "Room %s — event winner: %s (+%d)", room_id[:16], winner_uid[:8], bonus
+        )
     else:
         for ws in rooms.get(room_id, []):
             await ws_send(ws, {"type": "event_expired"})
         log.info("Room %s — event expired with no winner.", room_id[:16])
 
 
+async def run_match_events(room_id: str) -> None:
+    loop = asyncio.get_event_loop()
+    game_start = loop.time()
+
+    delay1 = random.uniform(5, 15)
+    delay2 = random.uniform(25, 35)
+
+    await fire_event(room_id, delay1)
+
+    elapsed = loop.time() - game_start
+    await fire_event(room_id, max(0.0, delay2 - elapsed))
+
+
 # ── Match timer ────────────────────────────────────────────────────────────────
+
 
 async def match_timer(room_id: str) -> None:
     async def broadcast(msg: dict) -> None:
@@ -114,15 +144,15 @@ async def match_timer(room_id: str) -> None:
             await broadcast({"type": "countdown", "value": i})
             await asyncio.sleep(1)
 
-        room_state[room_id] = 'in_progress'
+        room_state[room_id] = "in_progress"
         await broadcast({"type": "game_start"})
         log.info("Room %s — match started.", room_id[:16])
 
-        # Launch event concurrently with the match timer
-        event_task_local = asyncio.create_task(fire_event(room_id))
+        # Launch events concurrently with the match timer
+        event_task_local = asyncio.create_task(run_match_events(room_id))
         room_event_tasks[room_id] = event_task_local
 
-        for i in range(67, -1, -1):
+        for i in range(42, -1, -1):
             room_remaining[room_id] = i
             await broadcast({"type": "tick", "remaining": i})
             if i == 0:
@@ -135,7 +165,7 @@ async def match_timer(room_id: str) -> None:
 
         scores = room_scores.get(room_id, {})
         players = rooms.get(room_id, [])
-        room_state[room_id] = 'finished'
+        room_state[room_id] = "finished"
 
         # Apply event bonus to the winner's score
         event_bonus = room_event_bonus.get(room_id, {})
@@ -149,12 +179,30 @@ async def match_timer(room_id: str) -> None:
             s0 = scores.get(id(players[0]), 0)
             s1 = scores.get(id(players[1]), 0)
             w0, w1 = (
-                ("you", "opponent") if s0 > s1
-                else ("opponent", "you") if s1 > s0
+                ("you", "opponent")
+                if s0 > s1
+                else ("opponent", "you")
+                if s1 > s0
                 else ("draw", "draw")
             )
-            await ws_send(players[0], {"type": "game_over", "your_score": s0, "opponent_score": s1, "winner": w0})
-            await ws_send(players[1], {"type": "game_over", "your_score": s1, "opponent_score": s0, "winner": w1})
+            await ws_send(
+                players[0],
+                {
+                    "type": "game_over",
+                    "your_score": s0,
+                    "opponent_score": s1,
+                    "winner": w0,
+                },
+            )
+            await ws_send(
+                players[1],
+                {
+                    "type": "game_over",
+                    "your_score": s1,
+                    "opponent_score": s0,
+                    "winner": w1,
+                },
+            )
             log.info("Room %s — game over: %d vs %d", room_id[:16], s0, s1)
 
             ws_uid_map = room_ws_to_uid.get(room_id, {})
@@ -170,8 +218,21 @@ async def match_timer(room_id: str) -> None:
             stayer = players[0]
             s_stayer = scores.get(id(stayer), 0)
             s_opponent = next((v for k, v in scores.items() if k != id(stayer)), 0)
-            await ws_send(stayer, {"type": "game_over", "your_score": s_stayer, "opponent_score": s_opponent, "winner": "you"})
-            log.info("Room %s — game over (1 player): stayer=%d opponent=%d", room_id[:16], s_stayer, s_opponent)
+            await ws_send(
+                stayer,
+                {
+                    "type": "game_over",
+                    "your_score": s_stayer,
+                    "opponent_score": s_opponent,
+                    "winner": "you",
+                },
+            )
+            log.info(
+                "Room %s — game over (1 player): stayer=%d opponent=%d",
+                room_id[:16],
+                s_stayer,
+                s_opponent,
+            )
 
     except asyncio.CancelledError:
         if event_task_local and not event_task_local.done():

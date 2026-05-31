@@ -39,8 +39,9 @@ export function useRoomController() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const remoteVideoRef = useRef<HTMLVideoElement>(null)
 
-  const roomWsUrl = `${WS_PROTO}://${SERVER}/room/${roomId}`
-  const { count, status: gestureStatus } = useGestureDetector(videoRef, canvasRef)
+  const isTrain = new URLSearchParams(window.location.search).get('mode') === 'train'
+  const roomWsUrl = isTrain ? '' : `${WS_PROTO}://${SERVER}/room/${roomId}`
+  const { count, status: gestureStatus } = useGestureDetector(videoRef, canvasRef, isTrain)
 
   const countRef = useRef(0)
   countRef.current = count
@@ -56,14 +57,14 @@ export function useRoomController() {
   })
 
   useEffect(() => {
-    if (remaining !== null && !gameStartedRef.current) {
+    if ((remaining !== null || isTrain) && !gameStartedRef.current) {
       gameStartedRef.current = true
       baseCountRef.current = countRef.current
     }
-    if (remaining === null && gameOver === null) {
+    if (!isTrain && remaining === null && gameOver === null) {
       gameStartedRef.current = false
     }
-  }, [remaining, gameOver])
+  }, [remaining, gameOver, isTrain])
 
   const gameCount = gameStartedRef.current ? Math.max(0, count - baseCountRef.current) : 0
   const isMatched = mpStatus === 'matched'
@@ -87,5 +88,6 @@ export function useRoomController() {
     isMobile, isMatched, cameraReady, matchCtx,
     gameCount, gestureStatus, mpStatus, opponentCount,
     countdown, remaining, gameOver, latencyMs, opponentReconnecting, navigate,
+    isTrain,
   }
 }

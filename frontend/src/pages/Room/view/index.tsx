@@ -14,42 +14,66 @@ export function RoomView(props: RoomViewProps) {
     matchCtx, gameCount, gestureStatus,
     mpStatus, opponentCount, countdown,
     remaining, gameOver, latencyMs, opponentReconnecting, navigate,
+    isTrain,
   } = props
 
-  const localPanelStyle: React.CSSProperties = {
-    position: 'relative', overflow: 'hidden',
-    transition: isMobile ? 'height 0.3s ease' : 'width 0.3s ease',
-    ...(isMobile
-      ? { width: '100%', height: isMatched ? '60vh' : '100vh' }
-      : { width: isMatched ? '50%' : '100%', height: '100vh' }),
-  }
-
   return (
-    <div style={{ position: 'relative', width: '100%', height: '100vh', overflow: 'hidden', background: '#000' }}>
-      <div style={localPanelStyle}>
-        {!cameraReady && (
-          <div style={{ position: 'absolute', inset: 0, zIndex: 10, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1rem', background: '#111' }}>
-            <div style={{ width: 40, height: 40, border: '4px solid rgba(99,102,241,0.25)', borderTop: '4px solid #818cf8', borderRadius: '50%', animation: 'spin 0.9s linear infinite' }} />
-            <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.9rem', fontWeight: 600, fontFamily: "'Inter', sans-serif" }}>Carregando câmera…</span>
-          </div>
-        )}
-        <video ref={videoRef} autoPlay playsInline muted style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-        <canvas ref={canvasRef} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 5 }} />
-        {isMatched && <PlayerInfoOverlay name="Você" rankingPoints={matchCtx.myScore} score={gameCount} latencyMs={latencyMs} />}
+    <div className="relative min-h-screen w-full flex flex-col p-4 md:p-8 overflow-hidden bg-[#09090b] text-neutral-200 font-sans">
+      {/* Background Blobs */}
+      <div className="absolute inset-0 z-0 pointer-events-none">
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-900/20 blur-[120px] rounded-full mix-blend-screen" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-emerald-900/10 blur-[120px] rounded-full mix-blend-screen" />
       </div>
 
-      {isMatched && (
-        isMobile
-          ? <div style={{ position: 'absolute', top: '60vh', left: 0, right: 0, height: '2px', background: 'linear-gradient(to right, transparent, rgba(255,255,255,0.4) 20%, rgba(255,255,255,0.4) 80%, transparent)', zIndex: 15, pointerEvents: 'none' }} />
-          : <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: '3px', height: '100vh', background: 'linear-gradient(to bottom, transparent, rgba(255,255,255,0.4) 20%, rgba(255,255,255,0.4) 80%, transparent)', zIndex: 15, pointerEvents: 'none' }} />
-      )}
+      {/* Header / Timer */}
+      <div className="w-full h-12 md:h-16 shrink-0 relative z-20 flex justify-between items-start">
+        <div className="flex-1">
+          {isTrain && (
+            <button onClick={() => navigate(ROUTES.HOME)} className="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-white rounded-full text-sm font-semibold transition-colors">
+              ← Voltar
+            </button>
+          )}
+        </div>
+        <div className="flex-1 flex justify-center">
+          {remaining !== null && gameOver === null && !isTrain && (
+            <TimerBadge remaining={remaining} />
+          )}
+          {isTrain && (
+            <div style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', borderRadius: '9999px', padding: '0.35rem 1.25rem', border: `1px solid rgba(255,255,255,0.2)` }}>
+              <span style={{ color: 'white', fontFamily: "'Inter', sans-serif", fontWeight: 700, fontSize: '1.1rem' }}>Treinamento Livre</span>
+            </div>
+          )}
+        </div>
+        <div className="flex-1" />
+      </div>
 
-      {isMatched && <OpponentPanel remoteVideoRef={remoteVideoRef} opponentCount={opponentCount} latencyMs={latencyMs} isMobile={isMobile} oppNick={matchCtx.oppNick} oppRankingScore={matchCtx.oppScore} isReconnecting={opponentReconnecting} />}
-      {remaining !== null && gameOver === null && <TimerBadge remaining={remaining} />}
+      {/* Main Content Area */}
+      <div className={`relative z-10 w-full flex-1 max-w-6xl mx-auto flex ${isMatched ? (isMobile ? 'flex-col' : 'flex-row') : 'justify-center items-center'} gap-4 md:gap-8`}>
+        {/* Local Camera */}
+        <div className={`relative overflow-hidden rounded-3xl bg-neutral-900/60 border border-neutral-800 shadow-2xl backdrop-blur-sm ${isMatched || isTrain ? 'w-full flex-1 min-h-[300px]' : 'w-full max-w-3xl aspect-[4/3] min-h-[400px]'}`}>
+          {!cameraReady && (
+            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-neutral-900/80">
+              <div className="w-10 h-10 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
+              <span className="text-white/70 font-semibold text-sm">Carregando câmera…</span>
+            </div>
+          )}
+          <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover block" />
+          <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none z-[5]" />
+          {(isMatched || isTrain) && <PlayerInfoOverlay name={isTrain ? "Treino" : "Você"} rankingPoints={matchCtx.myScore} score={gameCount} latencyMs={latencyMs} />}
+        </div>
+
+        {/* Opponent Camera */}
+        {isMatched && (
+          <OpponentPanel remoteVideoRef={remoteVideoRef} opponentCount={opponentCount} latencyMs={latencyMs} isMobile={isMobile} oppNick={matchCtx.oppNick} oppRankingScore={matchCtx.oppScore} isReconnecting={opponentReconnecting} />
+        )}
+      </div>
+
+      {/* Overlays */}
       {countdown !== null && <CountdownOverlay value={countdown} />}
       {!isMatched && <StatusBadge status={gestureStatus} isMobile={isMobile} />}
       {(mpStatus === 'connecting' || mpStatus === 'waiting_peer') && <WaitingOverlay status={mpStatus} />}
       {gameOver !== null && <GameOverOverlay data={gameOver} onGoHome={() => navigate(ROUTES.HOME)} />}
+      {opponentReconnecting && <ReconnectingBanner timeout={15} />}
       {mpStatus === 'disconnected' && gameOver === null && !opponentReconnecting && <DisconnectedBanner onGoHome={() => navigate(ROUTES.HOME)} />}
     </div>
   )
@@ -96,7 +120,7 @@ function TimerBadge({ remaining }: { remaining: number }) {
   const isDanger = remaining <= 5; const isWarning = remaining <= 10
   const color = isDanger ? '#ef4444' : isWarning ? '#f59e0b' : 'rgba(255,255,255,0.9)'
   return (
-    <div style={{ position: 'absolute', top: '1rem', left: '50%', transform: 'translateX(-50%)', zIndex: 20, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', borderRadius: '9999px', padding: '0.35rem 1.25rem', border: `1px solid ${color}55`, whiteSpace: 'nowrap', transition: 'border-color 0.3s' }}>
+    <div style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', borderRadius: '9999px', padding: '0.35rem 1.25rem', border: `1px solid ${color}55`, whiteSpace: 'nowrap', transition: 'border-color 0.3s' }}>
       <span style={{ color, fontFamily: "'Inter', sans-serif", fontWeight: 700, fontSize: '1.1rem', fontVariantNumeric: 'tabular-nums', transition: 'color 0.3s' }}>Tempo Restante: {remaining}s</span>
     </div>
   )

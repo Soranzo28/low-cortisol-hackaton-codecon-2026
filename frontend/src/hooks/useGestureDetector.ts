@@ -213,6 +213,7 @@ function drawDebug(
 export function useGestureDetector(
   videoRef: RefObject<HTMLVideoElement | null>,
   canvasRef: RefObject<HTMLCanvasElement | null>,
+  drawOverlay: boolean = false
 ) {
   const [count, setCount] = useState(0)
   const [status, setStatus] = useState<DetectionStatus>('loading')
@@ -313,13 +314,19 @@ export function useGestureDetector(
         const rightPalmBelow = rightPalmScreen.y > bottomY
 
         if (canvasRef.current) {
-          drawDebug(
-            canvasRef.current, lms, t,
-            leftPalmScreen, rightPalmScreen,
-            leftPalmAbove, rightPalmAbove,
-            leftPalmBelow, rightPalmBelow,
-            wristsDetected,
-          )
+          if (drawOverlay) {
+            drawDebug(
+              canvasRef.current, lms, t,
+              leftPalmScreen, rightPalmScreen,
+              leftPalmAbove, rightPalmAbove,
+              leftPalmBelow, rightPalmBelow,
+              wristsDetected,
+            )
+          } else {
+            const cvs = canvasRef.current
+            const ctx = cvs.getContext('2d')
+            ctx?.clearRect(0, 0, cvs.width, cvs.height)
+          }
         }
 
         if (!wristsDetected) {
@@ -364,7 +371,9 @@ export function useGestureDetector(
             if (cvs.width !== w) cvs.width = w
             if (cvs.height !== h) cvs.height = h
             ctx.clearRect(0, 0, w, h)
-            drawThresholdLines(ctx, w, h, false, false, false)
+            if (drawOverlay) {
+              drawThresholdLines(ctx, w, h, false, false, false)
+            }
           }
         }
       }
@@ -378,7 +387,7 @@ export function useGestureDetector(
       cancelAnimationFrame(animFrameRef.current)
       observer?.disconnect()
     }
-  }, [status, videoRef, canvasRef])
+  }, [status, videoRef, canvasRef, drawOverlay])
 
   return { count, status }
 }

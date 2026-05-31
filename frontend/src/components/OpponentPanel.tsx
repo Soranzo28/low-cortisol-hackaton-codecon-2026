@@ -11,32 +11,10 @@ interface OpponentPanelProps {
 }
 
 export function OpponentPanel({ remoteVideoRef, opponentCount, latencyMs, isMobile, oppNick = 'Adversário', oppRankingScore = 0, isReconnecting = false }: OpponentPanelProps) {
-  const panelStyle: React.CSSProperties = isMobile
-    ? {
-        position: 'absolute',
-        top: '60vh',
-        left: 0,
-        width: '100%',
-        height: '40vh',
-        zIndex: 6,
-        overflow: 'hidden',
-        borderTop: '2px solid rgba(255,255,255,0.15)',
-      }
-    : {
-        position: 'absolute',
-        top: 0,
-        right: 0,
-        width: '50%',
-        height: '100vh',
-        zIndex: 6,
-        overflow: 'hidden',
-        borderLeft: '3px solid rgba(255,255,255,0.15)',
-      }
-
   const lColor = latencyColor(latencyMs)
 
   return (
-    <div style={panelStyle}>
+    <div className="relative w-full flex-1 overflow-hidden rounded-3xl bg-neutral-900/60 border border-neutral-800 shadow-2xl backdrop-blur-sm">
       <video
         ref={remoteVideoRef}
         autoPlay

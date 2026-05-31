@@ -110,6 +110,11 @@ export function useMultiplayer({
         return
       }
 
+      if (!roomWsUrl) {
+        if (mountedRef.current) setStatus('idle')
+        return
+      }
+
       // 2. fetch token before opening WS so onopen stays synchronous
       const token = await getToken()
 

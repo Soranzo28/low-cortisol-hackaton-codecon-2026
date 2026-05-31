@@ -193,7 +193,7 @@ function PlayerBelowInfo({ name, rankingScore, avatarUrl }: { name: string; rank
 
 const TRAIN_EVENTS = [
   { id: 'absolute_cinema', label: 'Absolute Cinema', icon: '🤲', desc: 'Duas palmas abertas por 1s' },
-  { id: 'hype_wave',       label: 'Hype Wave',       icon: '🤚', desc: 'Mão na boca + palma aberta' },
+  { id: 'nerd_up',         label: 'Nerd Up',         icon: '☝', desc: 'Só o indicador levantado' },
 ]
 
 function TrainEventSelector({ selected, onSelect }: { selected: string | null; onSelect: (id: string) => void }) {

@@ -194,9 +194,9 @@ export function useRoomController() {
       title: 'Absolute Cinema!',
       instruction: 'Mostre as duas palmas abertas pra câmera por 1 segundo!',
     },
-    hype_wave: {
-      title: 'Hype Wave!',
-      instruction: 'Cubra a boca com uma mão e aponte a palma aberta pra câmera com a outra por 1 segundo!',
+    nerd_up: {
+      title: 'Nerd Up!',
+      instruction: 'Levante só o dedo indicador de uma das mãos por 1 segundo!',
     },
   }
   const eventLabel = EVENT_LABELS[activeEventId ?? ''] ?? EVENT_LABELS['absolute_cinema']

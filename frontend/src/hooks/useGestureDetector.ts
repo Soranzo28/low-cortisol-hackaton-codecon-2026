@@ -68,33 +68,14 @@ function isOpenPalmFacingCamera(hand: Landmark[]): boolean {
   return palmFacing && fingersOpen
 }
 
-// Hype Wave (faithful port of the Python script):
-//   - One hand near face: 2D Euclidean distance from wrist OR middle-finger-tip
-//     to a fixed reference point approximating the nose/mouth area
-//   - Other hand: palm open AND waving vertically (Y-position history)
-
-const NOSE_REF: [number, number] = [0.5, 0.25]  // fixed nose/mouth proxy (center-upper frame)
-const NEAR_WRIST_DIST  = 0.20   // wrist distance threshold
-const NEAR_FINGER_DIST = 0.15   // middle-finger-tip distance threshold
-const SWISH_FRAMES     = 10
-const SWISH_THRESHOLD  = 0.05   // vertical range over last 10 frames
-
-function isHandNearMouth(hand: Landmark[]): boolean {
-  const [nx, ny] = NOSE_REF
-  const wrist  = hand[0]
-  const middle = hand[12]
-  const wd = Math.hypot(wrist.x - nx, wrist.y - ny)
-  const fd = Math.hypot(middle.x - nx, middle.y - ny)
-  return wd < NEAR_WRIST_DIST || fd < NEAR_FINGER_DIST
+// Nerd Up: only the index finger raised, all other fingers closed
+function isNerdUp(hand: Landmark[]): boolean {
+  const indexUp  = hand[8].y  < hand[6].y   // index tip above index PIP
+  const middleDown = hand[12].y >= hand[10].y  // middle closed
+  const ringDown   = hand[16].y >= hand[14].y  // ring closed
+  const pinkyDown  = hand[20].y >= hand[18].y  // pinky closed
+  return indexUp && middleDown && ringDown && pinkyDown
 }
-
-function isPalmOpen(hand: Landmark[]): boolean {
-  return hand[8].y  < hand[6].y  &&  // index  tip < PIP
-         hand[12].y < hand[10].y &&  // middle tip < PIP
-         hand[16].y < hand[14].y &&  // ring   tip < PIP
-         hand[20].y < hand[18].y     // pinky  tip < PIP
-}
-
 
 // Debug: hand connections for HandLandmarker (21 landmarks)
 const HAND_CONNECTIONS: [number, number][] = [
@@ -110,9 +91,7 @@ function drawHandDebug(
   canvas: HTMLCanvasElement,
   hands: Landmark[][],
   t: CoverTransform,
-  faceIdx: number,
-  waveIdx: number,
-  swishRange: number,
+  activeIdx: number,  // index of the hand that matched the current event pose (-1 = none)
 ) {
   const ctx = canvas.getContext('2d')
   if (!ctx) return
@@ -120,28 +99,10 @@ function drawHandDebug(
   if (canvas.height !== t.H) canvas.height = t.H
   ctx.clearRect(0, 0, t.W, t.H)
 
-  // Reference point (nose proxy) + proximity circles
-  const ref = toScreen(NOSE_REF[0], NOSE_REF[1], t)
-  // scale a normalized distance of NEAR_WRIST_DIST to pixels (approx via frame width)
-  const wristPx  = NEAR_WRIST_DIST  * t.vw * t.scale
-  const fingerPx = NEAR_FINGER_DIST * t.vw * t.scale
-
-  ctx.save()
-  ctx.strokeStyle = 'rgba(250,204,21,0.6)'; ctx.lineWidth = 1.5; ctx.setLineDash([5, 4])
-  ctx.beginPath(); ctx.arc(ref.x, ref.y, wristPx, 0, Math.PI * 2); ctx.stroke()
-  ctx.strokeStyle = 'rgba(250,204,21,0.9)'; ctx.setLineDash([])
-  ctx.beginPath(); ctx.arc(ref.x, ref.y, fingerPx, 0, Math.PI * 2); ctx.stroke()
-  ctx.fillStyle = '#facc15'; ctx.beginPath(); ctx.arc(ref.x, ref.y, 5, 0, Math.PI * 2); ctx.fill()
-  ctx.font = 'bold 10px monospace'; ctx.fillStyle = 'rgba(250,204,21,0.85)'
-  ctx.fillText(`🎯 ref (${NOSE_REF[0]},${NOSE_REF[1]})`, ref.x + 8, ref.y - 6)
-  ctx.restore()
-
   hands.forEach((hand, hi) => {
-    const isFace = hi === faceIdx
-    const isWave = hi === waveIdx
-    const baseColor = isFace ? '#facc15' : isWave ? '#4ade80' : 'rgba(255,255,255,0.5)'
+    const isActive = hi === activeIdx
+    const baseColor = isActive ? '#4ade80' : 'rgba(255,255,255,0.5)'
 
-    // Skeleton
     ctx.strokeStyle = baseColor; ctx.lineWidth = 1.5
     for (const [a, b] of HAND_CONNECTIONS) {
       const pa = toScreen(hand[a].x, hand[a].y, t)
@@ -149,23 +110,16 @@ function drawHandDebug(
       ctx.beginPath(); ctx.moveTo(pa.x, pa.y); ctx.lineTo(pb.x, pb.y); ctx.stroke()
     }
 
-    // Landmarks
     for (let i = 0; i < hand.length; i++) {
       const { x, y } = toScreen(hand[i].x, hand[i].y, t)
       ctx.fillStyle = i === 0 ? baseColor : 'rgba(255,255,255,0.75)'
       ctx.beginPath(); ctx.arc(x, y, i === 0 ? 5 : 3, 0, Math.PI * 2); ctx.fill()
     }
 
-    // Wrist label
-    const w = toScreen(hand[0].x, hand[0].y, t)
-    const m = toScreen(hand[12].x, hand[12].y, t)
-    const wd = Math.hypot(hand[0].x - NOSE_REF[0], hand[0].y - NOSE_REF[1])
-    const fd = Math.hypot(hand[12].x - NOSE_REF[0], hand[12].y - NOSE_REF[1])
-    ctx.font = 'bold 10px monospace'; ctx.fillStyle = baseColor
-    ctx.fillText(`w:${wd.toFixed(2)}<${NEAR_WRIST_DIST}?${wd < NEAR_WRIST_DIST ? '✓' : '✗'}`, w.x + 7, w.y - 4)
-    ctx.fillText(`f:${fd.toFixed(2)}<${NEAR_FINGER_DIST}?${fd < NEAR_FINGER_DIST ? '✓' : '✗'}`, m.x + 7, m.y - 4)
-    if (isWave) {
-      ctx.fillText(`swish:${swishRange.toFixed(3)}>${SWISH_THRESHOLD}?${swishRange > SWISH_THRESHOLD ? '✓' : '✗'}`, w.x + 7, w.y + 12)
+    if (isActive) {
+      const tip = toScreen(hand[8].x, hand[8].y, t)
+      ctx.font = 'bold 11px monospace'; ctx.fillStyle = '#4ade80'
+      ctx.fillText('☝ nerd up!', tip.x + 6, tip.y - 6)
     }
   })
 }
@@ -267,14 +221,10 @@ export function useGestureDetector(
   const onEventCompleteRef = useRef(onEventComplete)
   onEventCompleteRef.current = onEventComplete
 
-  // Y-position history per hand slot for hype_wave swish detection
-  const yHistoriesRef = useRef<[number[], number[]]>([[], []])
-
   // Reset detection state when event mode starts
   useEffect(() => {
     if (mode === 'event') {
       eventHoldStartRef.current = 0
-      yHistoriesRef.current = [[], []]
     }
   }, [mode])
 
@@ -359,48 +309,22 @@ export function useGestureDetector(
           const handResult = handLandmarker.detectForVideo(video, performance.now())
           const hands = handResult.landmarks
           let poseDetected = false
-          let debugFaceIdx = -1
-          let debugWaveIdx = -1
-          let debugSwishRange = 0
+
+          let debugActiveIdx = -1
 
           if (eventIdRef.current === 'absolute_cinema') {
             poseDetected = hands.length >= 2 && hands.every(isOpenPalmFacingCamera)
 
-          } else if (eventIdRef.current === 'hype_wave') {
-            if (hands.length >= 2) {
-              // Always update y-histories so swish accumulates
-              for (let i = 0; i < 2; i++) {
-                yHistoriesRef.current[i].push(hands[i][0].y)
-                if (yHistoriesRef.current[i].length > SWISH_FRAMES) yHistoriesRef.current[i].shift()
-              }
-
-              for (let i = 0; i < 2 && !poseDetected; i++) {
-                const j = 1 - i
-                const hist = yHistoriesRef.current[j]
-                const swishRange = hist.length >= SWISH_FRAMES
-                  ? Math.max(...hist) - Math.min(...hist) : 0
-
-                const mouthOk = isHandNearMouth(hands[i])
-                const openOk  = isPalmOpen(hands[j])
-                const swishOk = swishRange > SWISH_THRESHOLD
-
-                debugFaceIdx = mouthOk ? i : debugFaceIdx
-                debugWaveIdx = openOk  ? j : debugWaveIdx
-                debugSwishRange = Math.max(debugSwishRange, swishRange)
-
-                if (mouthOk && openOk && swishOk) {
-                  poseDetected = true
-                  debugFaceIdx = i
-                  debugWaveIdx = j
-                }
-              }
-            }
+          } else if (eventIdRef.current === 'nerd_up') {
+            // Any single hand with only the index finger raised
+            const idx = hands.findIndex(isNerdUp)
+            if (idx !== -1) { poseDetected = true; debugActiveIdx = idx }
           }
 
           // Draw debug overlay in training mode
           if (drawOverlay && canvasRef.current && hands.length > 0) {
             const t = computeTransform(video, canvasRef.current)
-            drawHandDebug(canvasRef.current, hands, t, debugFaceIdx, debugWaveIdx, debugSwishRange)
+            drawHandDebug(canvasRef.current, hands, t, debugActiveIdx)
           } else if (!drawOverlay) {
             clearCanvas()
           }

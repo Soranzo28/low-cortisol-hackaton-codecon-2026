@@ -1,6 +1,8 @@
+import { useState, useEffect, useRef } from 'react'
 import { StatusBadge } from '@/components/StatusBadge'
 import { OpponentPanel } from '@/components/OpponentPanel'
 import { ROUTES } from '@/routes'
+import defaultIconUrl from '@/assets/default_icon.svg'
 import type { useRoomController } from '../controller'
 import type { GameOverData } from '../types'
 
@@ -15,6 +17,30 @@ export function RoomView(props: RoomViewProps) {
     remaining, gameOver, latencyMs, opponentReconnecting, navigate,
     isTrain,
   } = props
+
+  const [eventVisible, setEventVisible] = useState(false)
+  const [glowActive, setGlowActive] = useState(false)
+  const [glowFading, setGlowFading] = useState(false)
+  const eventFiredRef = useRef(false)
+
+  useEffect(() => {
+    if (isMatched && !eventFiredRef.current) {
+      eventFiredRef.current = true
+      const t = setTimeout(() => {
+        setEventVisible(true)
+        setTimeout(() => setEventVisible(false), 8000)
+      }, 10000)
+      return () => clearTimeout(t)
+    }
+  }, [isMatched])
+
+  const handleChallengeCompleted = () => {
+    setEventVisible(false)
+    setGlowActive(true)
+    setGlowFading(false)
+    setTimeout(() => setGlowFading(true), 4500)
+    setTimeout(() => { setGlowActive(false); setGlowFading(false) }, 5000)
+  }
 
   return (
     <div className="relative min-h-screen w-full flex flex-col p-4 md:p-8 overflow-hidden bg-[#09090b] text-neutral-200 font-sans">
@@ -38,7 +64,7 @@ export function RoomView(props: RoomViewProps) {
             <TimerBadge remaining={remaining} />
           )}
           {isTrain && (
-            <div style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', borderRadius: '9999px', padding: '0.35rem 1.25rem', border: `1px solid rgba(255,255,255,0.2)` }}>
+            <div style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', borderRadius: '9999px', padding: '0.35rem 1.25rem', border: '1px solid rgba(255,255,255,0.2)' }}>
               <span style={{ color: 'white', fontFamily: "'Inter', sans-serif", fontWeight: 700, fontSize: '1.1rem' }}>Treinamento Livre</span>
             </div>
           )}
@@ -47,23 +73,63 @@ export function RoomView(props: RoomViewProps) {
       </div>
 
       {/* Main Content Area */}
-      <div className={`relative z-10 w-full flex-1 max-w-7xl mx-auto flex ${isMatched && !isMobile ? 'flex-row' : 'flex-col'} justify-center items-center gap-6 md:gap-12`}>
-        {/* Local Camera */}
-        <div className={`relative overflow-hidden rounded-3xl bg-neutral-900/60 border border-neutral-800 shadow-2xl backdrop-blur-sm aspect-square w-full max-w-[600px] ${isMatched ? 'flex-1' : ''}`}>
-          {!cameraReady && (
-            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-neutral-900/80">
-              <div className="w-10 h-10 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
-              <span className="text-white/70 font-semibold text-sm">Carregando câmera…</span>
-            </div>
+      <div className={`relative z-10 w-full flex-1 max-w-7xl mx-auto flex ${isMatched && !isMobile ? 'flex-row items-start' : 'flex-col items-center'} justify-center gap-6 md:gap-12`}>
+
+        {/* Local player column */}
+        <div className={`flex flex-col items-center w-full max-w-[600px] ${isMatched && !isMobile ? 'flex-1' : ''}`}>
+          {/* Camera panel */}
+          <div
+            className="relative overflow-hidden rounded-3xl bg-neutral-900/60 border border-neutral-800 shadow-2xl backdrop-blur-sm aspect-square w-full"
+          >
+            {/* Glow border overlay */}
+            {glowActive && (
+              <div style={{
+                position: 'absolute', inset: 0, borderRadius: 'inherit', zIndex: 20, pointerEvents: 'none',
+                border: '2px solid #00ff88',
+                animation: glowFading ? 'none' : 'glow-pulse 1.2s ease-in-out infinite',
+                opacity: glowFading ? 0 : 1,
+                transition: 'opacity 0.5s ease',
+              }} />
+            )}
+
+            {!cameraReady && (
+              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-neutral-900/80">
+                <div className="w-10 h-10 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
+                <span className="text-white/70 font-semibold text-sm">Carregando câmera…</span>
+              </div>
+            )}
+            <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover block" />
+            <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none z-[5]" />
+            {(isMatched || isTrain) && <PlayerInfoOverlay score={gameCount} latencyMs={latencyMs} />}
+          </div>
+
+          {/* Below-panel: avatar + name (total score) */}
+          {(isMatched || isTrain) && (
+            <PlayerBelowInfo name={isTrain ? 'Treino' : 'Você'} rankingScore={matchCtx.myScore} />
           )}
-          <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover block" />
-          <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none z-[5]" />
-          {(isMatched || isTrain) && <PlayerInfoOverlay name={isTrain ? "Treino" : "Você"} rankingPoints={matchCtx.myScore} score={gameCount} latencyMs={latencyMs} />}
         </div>
 
-        {/* Opponent Camera */}
+        {/* Opponent column */}
         {isMatched && (
-          <OpponentPanel remoteVideoRef={remoteVideoRef} opponentCount={opponentCount} latencyMs={latencyMs} oppNick={matchCtx.oppNick} oppRankingScore={matchCtx.oppScore} isReconnecting={opponentReconnecting} />
+          <div className={`flex flex-col items-center w-full max-w-[600px] ${!isMobile ? 'flex-1' : ''}`}>
+            {/* Camera + event overlay wrapper */}
+            <div className="relative w-full aspect-square">
+              <OpponentPanel
+                remoteVideoRef={remoteVideoRef}
+                opponentCount={opponentCount}
+                latencyMs={latencyMs}
+                isReconnecting={opponentReconnecting}
+              />
+              <EventPanel
+                visible={eventVisible}
+                text="Desafio: faça 5 movimentos seguidos sem parar!"
+                onComplete={handleChallengeCompleted}
+              />
+            </div>
+
+            {/* Below-panel: avatar + name (total score) */}
+            <PlayerBelowInfo name={matchCtx.oppNick} rankingScore={matchCtx.oppScore} />
+          </div>
         )}
       </div>
 
@@ -76,6 +142,8 @@ export function RoomView(props: RoomViewProps) {
     </div>
   )
 }
+
+// ── Sub-components ─────────────────────────────────────────────────────────────
 
 function latencyColor(ms: number | null): string {
   if (ms === null) return 'rgba(255,255,255,0.4)'
@@ -93,24 +161,87 @@ function WifiIcon({ color }: { color: string }) {
   )
 }
 
-function PlayerInfoOverlay({ name, rankingPoints, score, latencyMs }: { name: string; rankingPoints: number; score: number; latencyMs: number | null }) {
+function PlayerInfoOverlay({ score, latencyMs }: { score: number; latencyMs: number | null }) {
   const lColor = latencyColor(latencyMs)
   return (
-    <>
-      <div style={{ position: 'absolute', top: '0.75rem', left: '0.75rem', zIndex: 11, display: 'flex', alignItems: 'center', background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(6px)', borderRadius: '9999px', padding: '0.25rem 0.75rem' }}>
-        <span style={{ color: 'white', fontSize: '0.8rem', fontWeight: 600, fontFamily: "'Inter', sans-serif" }}>{name}</span>
-        <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.75rem', marginLeft: '0.3rem', fontFamily: "'Inter', sans-serif" }}>({String(rankingPoints).padStart(4, '0')})</span>
-      </div>
-      <div style={{ position: 'absolute', top: '0.75rem', right: '0.75rem', zIndex: 11, display: 'flex', alignItems: 'center', gap: '0.3rem', background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(6px)', borderRadius: '9999px', padding: '0.25rem 0.65rem' }}>
-        <WifiIcon color={lColor} />
-        <span style={{ color: lColor, fontSize: '0.75rem', fontWeight: 600, fontFamily: "'Inter', sans-serif" }}>{latencyMs !== null ? `${latencyMs}ms` : '—'}</span>
-      </div>
-      <div style={{ position: 'absolute', bottom: '2rem', left: '50%', transform: 'translateX(-50%)', zIndex: 11, pointerEvents: 'none', textAlign: 'center', whiteSpace: 'nowrap' }}>
-        <span style={{ fontSize: 'clamp(2.5rem, 8vw, 6rem)', color: 'white', textShadow: '0 4px 32px rgba(0,0,0,0.9), 0 2px 8px rgba(0,0,0,0.8)', fontWeight: 900, lineHeight: 1, fontFamily: "'Inter', sans-serif", userSelect: 'none' }}>
-          +{score} <span style={{ fontSize: '0.45em', fontWeight: 700, opacity: 0.7 }}>Aura</span>
+    <div style={{ position: 'absolute', top: '0.75rem', left: '0.75rem', zIndex: 11, display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+      <div style={{ background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(6px)', borderRadius: '0.5rem', padding: '0.3rem 0.65rem', display: 'inline-flex', alignItems: 'center' }}>
+        <span style={{ color: '#00ff88', fontSize: '1.15rem', fontWeight: 800, fontFamily: "'Inter', sans-serif", textShadow: '0 0 12px rgba(0,255,136,0.55)' }}>
+          +{score} 💀
         </span>
       </div>
-    </>
+      <div style={{ background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(6px)', borderRadius: '0.5rem', padding: '0.25rem 0.55rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+        <WifiIcon color={lColor} />
+        <span style={{ color: lColor, fontSize: '0.75rem', fontWeight: 600, fontFamily: "'Inter', sans-serif" }}>
+          {latencyMs !== null ? `${latencyMs}ms` : '—'}
+        </span>
+      </div>
+    </div>
+  )
+}
+
+function PlayerBelowInfo({ name, rankingScore }: { name: string; rankingScore: number }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.4rem', marginTop: '0.75rem' }}>
+      <div style={{ width: 44, height: 44, borderRadius: '50%', overflow: 'hidden', border: '2px solid rgba(255,255,255,0.22)', flexShrink: 0 }}>
+        <img src={defaultIconUrl} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+      </div>
+      <span style={{ color: 'rgba(255,255,255,0.9)', fontWeight: 600, fontFamily: "'Inter', sans-serif", fontSize: '0.85rem', letterSpacing: '0.06em' }}>
+        {name.toUpperCase()} ({String(rankingScore).padStart(3, '0')})
+      </span>
+    </div>
+  )
+}
+
+function EventPanel({ visible, text, onComplete }: { visible: boolean; text: string; onComplete: () => void }) {
+  return (
+    <div style={{
+      position: 'absolute',
+      top: '18%',
+      right: 0,
+      bottom: '18%',
+      width: '74%',
+      zIndex: 20,
+      transform: visible ? 'translateX(0)' : 'translateX(110%)',
+      transition: 'transform 0.45s cubic-bezier(0.16, 1, 0.3, 1)',
+      background: 'rgba(10,10,20,0.88)',
+      backdropFilter: 'blur(10px)',
+      border: '1px solid rgba(255,255,255,0.1)',
+      borderRight: 'none',
+      borderRadius: '1rem 0 0 1rem',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '1.25rem 1.5rem',
+      gap: '1rem',
+      pointerEvents: visible ? 'auto' : 'none',
+    }}>
+      <span style={{ color: '#f59e0b', fontSize: '0.7rem', fontWeight: 700, fontFamily: "'Inter', sans-serif", letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+        ⚡ Evento
+      </span>
+      <p style={{ color: 'white', fontFamily: "'Inter', sans-serif", fontWeight: 600, fontSize: '0.9rem', textAlign: 'center', lineHeight: 1.4, margin: 0 }}>
+        {text}
+      </p>
+      <button
+        onClick={onComplete}
+        style={{
+          background: 'linear-gradient(135deg, #00ff88, #00cc6a)',
+          color: '#000',
+          border: 'none',
+          borderRadius: '9999px',
+          padding: '0.5rem 1.25rem',
+          fontSize: '0.8rem',
+          fontWeight: 700,
+          cursor: 'pointer',
+          fontFamily: "'Inter', sans-serif",
+          letterSpacing: '0.04em',
+          marginTop: '0.25rem',
+        }}
+      >
+        Cumpri o desafio ✓
+      </button>
+    </div>
   )
 }
 

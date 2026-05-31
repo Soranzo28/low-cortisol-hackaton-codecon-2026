@@ -4,16 +4,14 @@ interface OpponentPanelProps {
   remoteVideoRef: React.RefObject<HTMLVideoElement>
   opponentCount: number
   latencyMs: number | null
-  oppNick?: string
-  oppRankingScore?: number
   isReconnecting?: boolean
 }
 
-export function OpponentPanel({ remoteVideoRef, opponentCount, latencyMs, oppNick = 'Adversário', oppRankingScore = 0, isReconnecting = false }: OpponentPanelProps) {
+export function OpponentPanel({ remoteVideoRef, opponentCount, latencyMs, isReconnecting = false }: OpponentPanelProps) {
   const lColor = latencyColor(latencyMs)
 
   return (
-    <div className="relative w-full flex-1 overflow-hidden rounded-3xl bg-neutral-900/60 border border-neutral-800 shadow-2xl backdrop-blur-sm aspect-square max-w-[600px]">
+    <div className="relative w-full h-full overflow-hidden rounded-3xl bg-neutral-900/60 border border-neutral-800 shadow-2xl backdrop-blur-sm">
       <video
         ref={remoteVideoRef}
         autoPlay
@@ -31,110 +29,31 @@ export function OpponentPanel({ remoteVideoRef, opponentCount, latencyMs, oppNic
       />
 
       {isReconnecting && (
-        <div style={{
-          position: 'absolute', inset: 0, zIndex: 12,
-          display: 'flex', flexDirection: 'column',
-          alignItems: 'center', justifyContent: 'center', gap: '0.75rem',
-        }}>
-          <div style={{
-            width: 36, height: 36,
-            border: '3px solid rgba(255,255,255,0.2)',
-            borderTop: '3px solid rgba(255,255,255,0.85)',
-            borderRadius: '50%',
-            animation: 'spin 0.9s linear infinite',
-          }} />
-          <span style={{
-            color: 'rgba(255,255,255,0.9)',
-            fontSize: '0.9rem',
-            fontWeight: 600,
-            fontFamily: "'Inter', sans-serif",
-            letterSpacing: '0.04em',
-          }}>
+        <div style={{ position: 'absolute', inset: 0, zIndex: 12, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.75rem' }}>
+          <div style={{ width: 36, height: 36, border: '3px solid rgba(255,255,255,0.2)', borderTop: '3px solid rgba(255,255,255,0.85)', borderRadius: '50%', animation: 'spin 0.9s linear infinite' }} />
+          <span style={{ color: 'rgba(255,255,255,0.9)', fontSize: '0.9rem', fontWeight: 600, fontFamily: "'Inter', sans-serif", letterSpacing: '0.04em' }}>
             Reconectando…
           </span>
         </div>
       )}
 
-      {/* Top-left: nick (score) */}
-      <div style={playerNameStyle}>
-        <span style={{ color: 'white', fontSize: '0.8rem', fontWeight: 600, fontFamily: "'Inter', sans-serif" }}>
-          {oppNick}
-        </span>
-        <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.75rem', marginLeft: '0.3rem', fontFamily: "'Inter', sans-serif" }}>
-          ({String(oppRankingScore).padStart(4, '0')})
-        </span>
-      </div>
-
-      {/* Top-right: latency */}
-      <div style={latencyBadgeStyle}>
-        <WifiIcon color={lColor} />
-        <span style={{ color: lColor, fontSize: '0.75rem', fontWeight: 600, fontFamily: "'Inter', sans-serif" }}>
-          {latencyMs !== null ? `${latencyMs}ms` : '—'}
-        </span>
-      </div>
-
-      {/* Bottom-center: +X Aura */}
-      <div style={scoreLabelStyle}>
-        <span style={scoreTextStyle}>
-          +{opponentCount}{' '}
-          <span style={{ fontSize: '0.45em', fontWeight: 700, opacity: 0.7 }}>Aura</span>
-        </span>
+      {/* Top-left: aura score + latency */}
+      <div style={{ position: 'absolute', top: '0.75rem', left: '0.75rem', zIndex: 11, display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+        <div style={{ background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(6px)', borderRadius: '0.5rem', padding: '0.3rem 0.65rem', display: 'inline-flex', alignItems: 'center' }}>
+          <span style={{ color: '#00ff88', fontSize: '1.15rem', fontWeight: 800, fontFamily: "'Inter', sans-serif", textShadow: '0 0 12px rgba(0,255,136,0.55)' }}>
+            +{opponentCount} 💀
+          </span>
+        </div>
+        <div style={{ background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(6px)', borderRadius: '0.5rem', padding: '0.25rem 0.55rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+          <WifiIcon color={lColor} />
+          <span style={{ color: lColor, fontSize: '0.75rem', fontWeight: 600, fontFamily: "'Inter', sans-serif" }}>
+            {latencyMs !== null ? `${latencyMs}ms` : '—'}
+          </span>
+        </div>
       </div>
     </div>
   )
 }
-
-// ── Shared styles ─────────────────────────────────────────────────────────────
-
-const playerNameStyle: React.CSSProperties = {
-  position: 'absolute',
-  top: '0.75rem',
-  left: '0.75rem',
-  zIndex: 11,
-  display: 'flex',
-  alignItems: 'center',
-  background: 'rgba(0,0,0,0.5)',
-  backdropFilter: 'blur(6px)',
-  borderRadius: '9999px',
-  padding: '0.25rem 0.75rem',
-}
-
-const latencyBadgeStyle: React.CSSProperties = {
-  position: 'absolute',
-  top: '0.75rem',
-  right: '0.75rem',
-  zIndex: 11,
-  display: 'flex',
-  alignItems: 'center',
-  gap: '0.3rem',
-  background: 'rgba(0,0,0,0.5)',
-  backdropFilter: 'blur(6px)',
-  borderRadius: '9999px',
-  padding: '0.25rem 0.65rem',
-}
-
-const scoreLabelStyle: React.CSSProperties = {
-  position: 'absolute',
-  bottom: '2rem',
-  left: '50%',
-  transform: 'translateX(-50%)',
-  zIndex: 11,
-  pointerEvents: 'none',
-  textAlign: 'center',
-  whiteSpace: 'nowrap',
-}
-
-const scoreTextStyle: React.CSSProperties = {
-  fontSize: 'clamp(2.5rem, 8vw, 6rem)',
-  color: 'white',
-  textShadow: '0 4px 32px rgba(0,0,0,0.9), 0 2px 8px rgba(0,0,0,0.8)',
-  fontWeight: 900,
-  lineHeight: 1,
-  fontFamily: "'Inter', sans-serif",
-  userSelect: 'none',
-}
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function latencyColor(ms: number | null): string {
   if (ms === null) return 'rgba(255,255,255,0.4)'

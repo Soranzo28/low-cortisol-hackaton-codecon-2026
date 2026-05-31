@@ -232,45 +232,47 @@ function RankingPanel({ ranking, rankingLoading, fetchRanking, meData }: {
             </div>
 
             {/* Ranking rows */}
-            {ranking.map((entry, i) => {
-              const isMe = meData?.nick === entry.nick
+            <div className="flex flex-col gap-3 overflow-y-auto pr-1.5 max-h-[24.25rem] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-neutral-800 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
+              {ranking.map((entry, i) => {
+                const isMe = meData?.nick === entry.nick
 
-              return (
-                <div
-                  key={entry.nick}
-                  className={`
-                    grid grid-cols-[2rem_1fr_6rem_4.5rem] gap-4 md:gap-5 items-center px-6 md:px-8 h-[4.25rem] rounded-2xl transition-all
-                    ${isMe
-                      ? 'bg-neutral-800/80 border border-neutral-700 text-white shadow-lg scale-[1.02] z-10 relative'
-                      : 'bg-neutral-900/50 border border-neutral-800 text-neutral-300 hover:bg-neutral-800 hover:text-white'
-                    }
-                  `}
-                >
-                  {/* Position */}
-                  <span className="text-base font-semibold text-neutral-500">
-                    {i + 1}
-                  </span>
+                return (
+                  <div
+                    key={entry.nick}
+                    className={`
+                      grid grid-cols-[2rem_1fr_6rem_4.5rem] gap-4 md:gap-5 items-center px-6 md:px-8 h-[4.25rem] min-h-[4.25rem] rounded-2xl transition-all
+                      ${isMe
+                        ? 'bg-neutral-800/80 border border-neutral-700 text-white shadow-lg scale-[1.02] z-10 relative'
+                        : 'bg-neutral-900/50 border border-neutral-800 text-neutral-300 hover:bg-neutral-800 hover:text-white'
+                      }
+                    `}
+                  >
+                    {/* Position */}
+                    <span className="text-base font-semibold text-neutral-500">
+                      {i + 1}
+                    </span>
 
-                  {/* Nick */}
-                  <span className={`text-sm font-medium truncate ${isMe ? 'text-white' : 'text-neutral-200'}`}>
-                    {entry.nick}
-                    {isMe && <span className="ml-2 text-[9px] text-neutral-400 font-semibold uppercase tracking-wider bg-neutral-800 px-1.5 py-0.5 rounded border border-neutral-700">(você)</span>}
-                  </span>
+                    {/* Nick */}
+                    <span className={`text-sm font-medium truncate ${isMe ? 'text-white' : 'text-neutral-200'}`}>
+                      {entry.nick}
+                      {isMe && <span className="ml-2 text-[9px] text-neutral-400 font-semibold uppercase tracking-wider bg-neutral-800 px-1.5 py-0.5 rounded border border-neutral-700">(você)</span>}
+                    </span>
 
-                  {/* Score */}
-                  <span className="text-sm text-right tabular-nums font-semibold text-white">
-                    {entry.total_score.toLocaleString()}
-                  </span>
+                    {/* Score */}
+                    <span className="text-sm text-right tabular-nums font-semibold text-white">
+                      {entry.total_score.toLocaleString()}
+                    </span>
 
-                  {/* W / L */}
-                  <span className="text-sm text-right tabular-nums font-semibold whitespace-nowrap">
-                    <span className="text-emerald-400">{entry.wins}W</span>
-                    <span className="text-neutral-600 font-normal mx-1">/</span>
-                    <span className="text-red-400">{entry.matches_played - entry.wins}L</span>
-                  </span>
-                </div>
-              )
-            })}
+                    {/* W / L */}
+                    <span className="text-sm text-right tabular-nums font-semibold whitespace-nowrap">
+                      <span className="text-emerald-400">{entry.wins}W</span>
+                      <span className="text-neutral-600 font-normal mx-1">/</span>
+                      <span className="text-red-400">{entry.matches_played - entry.wins}L</span>
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
           </div>
         )}
       </div>

@@ -108,14 +108,16 @@ export function useMultiplayer({
         return
       }
 
-      // 2. open WS to room
+      // 2. fetch token before opening WS so onopen stays synchronous
+      const token = await getToken()
+
+      // 3. open WS to room
       const ws = new WebSocket(roomWsUrl)
       wsRef.current = ws
 
-      ws.onopen = async () => {
+      ws.onopen = () => {
         // Always send identify — server ignores it if room is 'waiting',
         // uses it to verify identity if room is 'in_progress'
-        const token = await getToken()
         if (token) ws.send(JSON.stringify({ type: 'identify', clerk_token: token }))
         if (mountedRef.current) setStatus('waiting_peer')
       }

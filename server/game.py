@@ -29,6 +29,7 @@ room_player_info: dict[str, list[dict]] = {}
 room_state: dict[str, str] = {}       # room_id -> 'waiting' | 'in_progress' | 'finished'
 room_remaining: dict[str, int] = {}   # room_id -> seconds remaining in match
 room_reconnect_tasks: dict[str, asyncio.Task] = {}  # grace-period tasks on disconnect
+room_ws_to_uid: dict[str, dict[int, str]] = {}  # room_id -> {id(ws): clerk_user_id}
 
 # ── Transport helpers ──────────────────────────────────────────────────────────
 
@@ -89,15 +90,14 @@ async def match_timer(room_id: str) -> None:
             await ws_send(players[1], {"type": "game_over", "your_score": s1, "opponent_score": s0, "winner": w1})
             log.info("Room %s — game over: %d vs %d", room_id[:16], s0, s1)
 
-            pinfos = room_player_info.get(room_id, [])
-            if len(pinfos) == 2:
-                uid_a = pinfos[0].get("clerk_user_id")
-                uid_b = pinfos[1].get("clerk_user_id")
-                if uid_a and uid_b:
-                    try:
-                        await db.record_match(uid_a, uid_b, s0, s1)
-                    except Exception as e:
-                        log.warning("record_match failed: %s", e)
+            ws_uid_map = room_ws_to_uid.get(room_id, {})
+            uid_0 = ws_uid_map.get(id(players[0]))
+            uid_1 = ws_uid_map.get(id(players[1]))
+            if uid_0 and uid_1:
+                try:
+                    await db.record_match(uid_0, uid_1, s0, s1)
+                except Exception as e:
+                    log.warning("record_match failed: %s", e)
 
         elif len(players) == 1:
             # Opponent disconnected during grace period and timer ran out

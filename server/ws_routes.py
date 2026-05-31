@@ -110,22 +110,22 @@ async def room_endpoint(ws: WebSocket, room_id: str):
 
     await ws.accept()
 
-    # If room is in_progress, verify this player belongs to the original match
-    if game.room_state.get(room_id) == 'in_progress':
-        clerk_user_id: str | None = None
-        try:
-            raw = await asyncio.wait_for(ws.receive_text(), timeout=5.0)
-            msg = json.loads(raw)
-            if msg.get("type") == "identify" and msg.get("clerk_token"):
-                clerk_user_id = await verify_clerk_token(msg["clerk_token"])
-        except Exception:
-            pass
+    # Always authenticate — client always sends identify on connect
+    clerk_user_id: str | None = None
+    try:
+        raw = await asyncio.wait_for(ws.receive_text(), timeout=5.0)
+        msg = json.loads(raw)
+        if msg.get("type") == "identify" and msg.get("clerk_token"):
+            clerk_user_id = await verify_clerk_token(msg["clerk_token"])
+    except Exception:
+        pass
 
-        original_ids = {p.get("clerk_user_id") for p in game.room_player_info.get(room_id, [])}
-        if not clerk_user_id or clerk_user_id not in original_ids:
-            await ws.close(code=4003, reason="Not a participant of this room")
-            return
+    original_ids = {p.get("clerk_user_id") for p in game.room_player_info.get(room_id, [])}
+    if not clerk_user_id or clerk_user_id not in original_ids:
+        await ws.close(code=4003, reason="Not a participant of this room")
+        return
 
+    game.room_ws_to_uid.setdefault(room_id, {})[id(ws)] = clerk_user_id
     game.rooms[room_id].append(ws)
     log.info("Player connected to room %s (%d/2)", room_id[:16], len(game.rooms[room_id]))
 
@@ -198,6 +198,7 @@ async def room_endpoint(ws: WebSocket, room_id: str):
             game.room_player_info.pop(rid, None)
             game.room_state.pop(rid, None)
             game.room_remaining.pop(rid, None)
+            game.room_ws_to_uid.pop(rid, None)
             log.info("Room %s destroyed.", rid[:16])
         game._cleanup_tasks.pop(rid, None)
 

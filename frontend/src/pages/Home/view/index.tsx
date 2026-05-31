@@ -188,7 +188,7 @@ function RankingPanel({ ranking, rankingLoading, fetchRanking, meData }: {
 }) {
   return (
     <div className="w-full order-2 flex flex-col items-center">
-      <div className="w-full max-w-md flex flex-col gap-3">
+      <div className="w-full max-w-lg flex flex-col gap-3">
         {/* Ranking header */}
         <div className="flex items-center justify-between mb-4 px-2">
           <div className="flex items-center gap-3">
@@ -222,7 +222,7 @@ function RankingPanel({ ranking, rankingLoading, fetchRanking, meData }: {
         ) : (
           <div className="flex flex-col gap-3">
             {/* Table header */}
-            <div className="grid grid-cols-[2.5rem_1fr_6rem_4rem] gap-2 px-4 text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-[-0.25rem] ml-1">
+            <div className="grid grid-cols-[2.5rem_1fr_6rem_4.5rem] gap-3 px-5 md:px-6 text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-[-0.25rem]">
               <span>#</span>
               <span>Nome</span>
               <span className="text-right">Auras Farmadas</span>
@@ -243,7 +243,7 @@ function RankingPanel({ ranking, rankingLoading, fetchRanking, meData }: {
                 <div
                   key={entry.nick}
                   className={`
-                    grid grid-cols-[2.5rem_1fr_6rem_4rem] gap-2 items-center px-4 h-16 md:h-14 rounded-2xl transition-all
+                    grid grid-cols-[2.5rem_1fr_6rem_4.5rem] gap-3 items-center px-5 md:px-6 h-[4.25rem] rounded-2xl transition-all
                     ${isMe
                       ? 'bg-indigo-500/15 border border-indigo-500/30 shadow-[0_0_20px_-5px_rgba(99,102,241,0.2)] scale-[1.02] z-10 relative'
                       : i < 3

@@ -67,7 +67,7 @@ async def fire_event(room_id: str) -> None:
     if room_state.get(room_id) != 'in_progress':
         return
 
-    event_id = "absolute_cinema"
+    event_id = random.choice(["absolute_cinema", "hype_wave"])
     duration = 10
 
     # Bounded queue: first put_nowait wins; second raises QueueFull (ignored)

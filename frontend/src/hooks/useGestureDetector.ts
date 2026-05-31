@@ -68,6 +68,33 @@ function isOpenPalmFacingCamera(hand: Landmark[]): boolean {
   return palmFacing && fingersOpen
 }
 
+// Hype Wave: one hand open (tip above PIP), other hand closed
+// Same landmark pairs as the Python script (tip vs PIP, not MCP)
+function isHandOpen(hand: Landmark[]): boolean {
+  return hand[8].y < hand[6].y &&   // index tip < index PIP
+         hand[12].y < hand[10].y && // middle
+         hand[16].y < hand[14].y && // ring
+         hand[20].y < hand[18].y    // pinky
+}
+
+function isHandClosed(hand: Landmark[]): boolean {
+  return !(hand[8].y < hand[6].y ||
+           hand[12].y < hand[10].y ||
+           hand[16].y < hand[14].y ||
+           hand[20].y < hand[18].y)
+}
+
+// Checks if shake history for this hand slot exceeds the displacement threshold
+const SHAKE_FRAMES = 8
+const SHAKE_THRESHOLD = 0.05
+
+function updateShakeHistory(hand: Landmark[], history: number[]): boolean {
+  history.push(hand[9].x)  // lm[9] = ring finger MCP, same as Python
+  if (history.length > SHAKE_FRAMES) history.shift()
+  if (history.length < SHAKE_FRAMES) return false
+  return Math.max(...history) - Math.min(...history) > SHAKE_THRESHOLD
+}
+
 function drawThresholdLines(
   ctx: CanvasRenderingContext2D, W: number, H: number,
   anyAbove: boolean, anyBelow: boolean, wristsDetected: boolean,
@@ -143,6 +170,7 @@ export function useGestureDetector(
   canvasRef: RefObject<HTMLCanvasElement | null>,
   drawOverlay: boolean = false,
   mode: 'normal' | 'event' = 'normal',
+  eventId: string | null = null,
   onEventComplete?: () => void,
 ) {
   const [count, setCount] = useState(0)
@@ -159,12 +187,20 @@ export function useGestureDetector(
   // Always-fresh refs so the rAF loop never captures stale closures
   const modeRef = useRef(mode)
   modeRef.current = mode
+  const eventIdRef = useRef(eventId)
+  eventIdRef.current = eventId
   const onEventCompleteRef = useRef(onEventComplete)
   onEventCompleteRef.current = onEventComplete
 
-  // Reset hold timer whenever mode changes
+  // Shake histories for hype_wave: separate per hand slot (index 0 and 1)
+  const shakeHistoriesRef = useRef<[number[], number[]]>([[], []])
+
+  // Reset detection state when event mode starts
   useEffect(() => {
-    eventHoldStartRef.current = 0
+    if (mode === 'event') {
+      eventHoldStartRef.current = 0
+      shakeHistoriesRef.current = [[], []]
+    }
   }, [mode])
 
   useEffect(() => {
@@ -248,12 +284,36 @@ export function useGestureDetector(
           const result = handLandmarker.detectForVideo(video, performance.now())
           clearCanvas()
           const hands = result.landmarks
-          if (hands.length >= 2 && hands.every(isOpenPalmFacingCamera)) {
-            const now = Date.now()
+          let poseDetected = false
+
+          if (eventIdRef.current === 'absolute_cinema') {
+            poseDetected = hands.length >= 2 && hands.every(isOpenPalmFacingCamera)
+
+          } else if (eventIdRef.current === 'hype_wave') {
+            if (hands.length >= 2) {
+              // Update shake histories for each hand slot
+              for (let i = 0; i < 2; i++) {
+                updateShakeHistory(hands[i], shakeHistoriesRef.current[i])
+              }
+              // Check: hand[i] open+shaking, hand[j] closed
+              for (let i = 0; i < 2 && !poseDetected; i++) {
+                const j = 1 - i
+                const hist = shakeHistoriesRef.current[i]
+                const isShaking = hist.length >= SHAKE_FRAMES &&
+                  Math.max(...hist) - Math.min(...hist) > SHAKE_THRESHOLD
+                if (isHandOpen(hands[i]) && isShaking && isHandClosed(hands[j])) {
+                  poseDetected = true
+                }
+              }
+            }
+          }
+
+          const now = Date.now()
+          if (poseDetected) {
             if (eventHoldStartRef.current === 0) {
               eventHoldStartRef.current = now
             } else if (eventHoldStartRef.current > 0 && now - eventHoldStartRef.current >= EVENT_HOLD_MS) {
-              eventHoldStartRef.current = -1  // mark as fired to prevent re-calling
+              eventHoldStartRef.current = -1
               onEventCompleteRef.current?.()
             }
           } else {

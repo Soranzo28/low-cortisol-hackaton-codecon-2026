@@ -52,35 +52,53 @@ export function useRoomController() {
   const [eventWinnerName, setEventWinnerName] = useState<string | null>(null)
   const [eventBonus, setEventBonus] = useState(0)
   const [opponentEventBonus, setOpponentEventBonus] = useState(0)
+  const [activeEventId, setActiveEventId] = useState<string | null>(null)
+  const [trainSelectedEvent, setTrainSelectedEvent] = useState<string | null>(null)
 
   const activeEventIdRef = useRef<string | null>(null)
   const sendMessageRef = useRef<((msg: object) => void) | null>(null)
   const isTrainRef = useRef(false)
+  // Always-fresh reset fn for train mode completion (avoids stale closure in useCallback)
+  const resetTrainSelectionRef = useRef<() => void>(() => {})
+  resetTrainSelectionRef.current = () => {
+    setTrainSelectedEvent(null)
+    setActiveEventId(null)
+    setDetectionMode('normal')
+  }
 
   const onEventComplete = useCallback(() => {
     setDetectionMode('normal')
     if (isTrainRef.current) {
-      // Training: show glow locally as feedback, no WS message
       setLocalGlowActive(true); setLocalGlowFading(false)
       setTimeout(() => setLocalGlowFading(true), 4500)
       setTimeout(() => { setLocalGlowActive(false); setLocalGlowFading(false) }, 5000)
+      resetTrainSelectionRef.current()
       return
     }
     const eventId = activeEventIdRef.current
     if (!eventId) return
     sendMessageRef.current?.({ type: 'event_complete', event_id: eventId })
     activeEventIdRef.current = null
-    // Do NOT hide panel — server will send event_winner which handles panel + winner display
   }, [])
 
   // ── Gesture detector (mode-aware) ────────────────────────────────────────────
   const isTrain = new URLSearchParams(window.location.search).get('mode') === 'train'
   isTrainRef.current = isTrain
-  const { count, status: gestureStatus } = useGestureDetector(videoRef, canvasRef, isTrain, detectionMode, onEventComplete)
+  const { count, status: gestureStatus } = useGestureDetector(videoRef, canvasRef, isTrain, detectionMode, activeEventId, onEventComplete)
 
-  const toggleTrainEventMode = useCallback(() => {
-    setDetectionMode(prev => prev === 'event' ? 'normal' : 'event')
-  }, [])
+  const selectTrainEvent = useCallback((eventId: string) => {
+    if (trainSelectedEvent === eventId) {
+      // deselect
+      setTrainSelectedEvent(null)
+      setActiveEventId(null)
+      setDetectionMode('normal')
+    } else {
+      setTrainSelectedEvent(eventId)
+      setActiveEventId(eventId)
+      setDetectionMode('event')
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trainSelectedEvent])
 
   const countRef = useRef(0)
   countRef.current = count
@@ -107,6 +125,7 @@ export function useRoomController() {
   useEffect(() => {
     if (!activeEvent) return
     activeEventIdRef.current = activeEvent.eventId
+    setActiveEventId(activeEvent.eventId)
     setDetectionMode('event')
     setEventPanelVisible(true)
     setEventCountdown(activeEvent.duration)
@@ -169,6 +188,18 @@ export function useRoomController() {
   }, [remaining, gameOver, isTrain])
 
   const gameCount = (gameStartedRef.current ? Math.max(0, count - baseCountRef.current) : 0) + eventBonus
+
+  const EVENT_LABELS: Record<string, { title: string; instruction: string }> = {
+    absolute_cinema: {
+      title: 'Absolute Cinema!',
+      instruction: 'Mostre as duas palmas abertas pra câmera por 1 segundo!',
+    },
+    hype_wave: {
+      title: 'Hype Wave!',
+      instruction: 'Agite uma mão aberta e feche a outra em punho por 1 segundo!',
+    },
+  }
+  const eventLabel = EVENT_LABELS[activeEventId ?? ''] ?? EVENT_LABELS['absolute_cinema']
   const isMatched = mpStatus === 'matched'
 
   useEffect(() => {
@@ -196,11 +227,13 @@ export function useRoomController() {
     eventPanelVisible,
     eventCountdown,
     eventWinnerName,
+    eventTitle: eventLabel.title,
+    eventInstruction: eventLabel.instruction,
     localGlowActive,
     localGlowFading,
     opponentGlowActive,
     opponentGlowFading,
-    trainEventActive: isTrain && detectionMode === 'event',
-    toggleTrainEventMode,
+    trainSelectedEvent,
+    selectTrainEvent,
   }
 }

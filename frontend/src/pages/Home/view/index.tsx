@@ -1,5 +1,5 @@
-import type { useHomeController } from './HomeController'
-import type { NickModalProps, RankingEntry, MeData } from './types'
+import type { useHomeController } from '../controller'
+import type { NickModalProps, RankingEntry, MeData } from '../types'
 
 type HomeViewProps = ReturnType<typeof useHomeController>
 

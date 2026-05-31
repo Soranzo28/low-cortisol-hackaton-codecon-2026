@@ -1,7 +1,8 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { useUser, useClerk, useAuth } from '@clerk/clerk-react'
 import { useQueue } from '@/hooks/useQueue'
-import type { MeData, RankingEntry } from './types'
+import { roomPath } from '@/routes'
+import type { MeData, RankingEntry } from '../types'
 
 const SERVER = import.meta.env.VITE_SERVER_URL ?? `${window.location.hostname}:8765`
 const WS_PROTO = window.location.protocol === 'https:' ? 'wss' : 'ws'
@@ -117,7 +118,7 @@ export function useHomeController() {
     serverUrl: `${WS_PROTO}://${SERVER}/queue`,
     getToken,
     onMatched(roomId) {
-      window.location.href = `/room/${roomId}`
+      window.location.href = roomPath(roomId)
     },
   })
 

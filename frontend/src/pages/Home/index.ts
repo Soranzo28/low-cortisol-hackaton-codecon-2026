@@ -1,5 +1,5 @@
-import { useHomeController } from './HomeController'
-import { HomeView } from './HomeView'
+import { useHomeController } from './controller'
+import { HomeView } from './view'
 
 export default function Home() {
   const controller = useHomeController()

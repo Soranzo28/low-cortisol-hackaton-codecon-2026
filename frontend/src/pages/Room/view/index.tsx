@@ -136,7 +136,7 @@ export function RoomView(props: RoomViewProps) {
                 onComplete={handleChallengeCompleted}
               />
             </div>
-            <PlayerBelowInfo name={matchCtx.oppNick} rankingScore={matchCtx.oppScore} />
+            <PlayerBelowInfo name={matchCtx.oppNick} rankingScore={matchCtx.oppScore} avatarUrl={matchCtx.oppImageUrl ?? undefined} />
           </div>
         )}
       </div>

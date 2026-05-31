@@ -39,7 +39,8 @@ async def queue_endpoint(ws: WebSocket):
         return
 
     total_score = player.get("total_score", 0) if player else 0
-    game.player_info[id(ws)] = {"clerk_user_id": clerk_user_id, "nick": nick, "total_score": total_score}
+    image_url = player.get("profile_image_url") if player else None
+    game.player_info[id(ws)] = {"clerk_user_id": clerk_user_id, "nick": nick, "total_score": total_score, "image_url": image_url}
     log.info("Player %s (%s) joined queue (size: %d)", nick, clerk_user_id[:8], len(game.queue))
 
     if game.queue:
@@ -53,8 +54,8 @@ async def queue_endpoint(ws: WebSocket):
         game.room_player_info[room_id] = [opp_info, game.player_info[id(ws)]]
         game.room_state[room_id] = 'waiting'
 
-        await game.ws_send(opponent, {"type": "matched", "roomId": room_id, "role": "offerer", "opp_nick": nick, "opp_score": total_score, "your_score": opp_score})
-        await game.ws_send(ws, {"type": "matched", "roomId": room_id, "role": "answerer", "opp_nick": opp_nick, "opp_score": opp_score, "your_score": total_score})
+        await game.ws_send(opponent, {"type": "matched", "roomId": room_id, "role": "offerer", "opp_nick": nick, "opp_score": total_score, "your_score": opp_score, "opp_image_url": image_url})
+        await game.ws_send(ws, {"type": "matched", "roomId": room_id, "role": "answerer", "opp_nick": opp_nick, "opp_score": opp_score, "your_score": total_score, "opp_image_url": opp_info.get("image_url")})
 
         game.player_info.pop(id(ws), None)
         try:

@@ -49,6 +49,7 @@ export function useQueue({
             myScore: msg.your_score ?? 0,
             oppScore: msg.opp_score ?? 0,
             oppNick: msg.opp_nick ?? 'Adversário',
+            oppImageUrl: msg.opp_image_url ?? null,
           }))
           onMatchedRef.current(msg.roomId as string, msg.role as 'offerer' | 'answerer')
         }

@@ -42,6 +42,16 @@ async def create_or_update_nick(clerk_user_id: str, nick: str) -> dict:
         raise ValueError("nick already taken")
 
 
+async def update_profile_image_url(clerk_user_id: str, image_url: str) -> None:
+    if not _pool:
+        return
+    await _pool.execute(
+        "UPDATE players SET profile_image_url = $1 WHERE clerk_user_id = $2",
+        image_url,
+        clerk_user_id,
+    )
+
+
 async def record_match(player_a: str, player_b: str, score_a: int, score_b: int) -> None:
     if not _pool:
         return

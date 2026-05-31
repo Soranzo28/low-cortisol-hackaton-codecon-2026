@@ -13,7 +13,21 @@ Nós pegamos esse gesto absurdo e o transformamos em uma mecânica de jogo real!
 
 Você pode jogar e testar o projeto online agora mesmo!
 
-# 🔗 **[CLIQUE AQUI](#)**
+# 🔗 **[CLIQUE AQUI](https://six-seven.breskovit.cloud/)**
+
+---
+
+## 🎬 Pitch do Projeto
+
+Assista à nossa apresentação
+
+<div align="center">
+  <a href="https://youtu.be/sMpOatWmjms">
+    <img src="https://img.youtube.com/vi/sMpOatWmjms/maxresdefault.jpg" alt="Assista ao Pitch do Projeto" style="border-radius: 8px; max-width: 100%; width: 100%;">
+  </a>
+</div>
+
+---
 
 ## 💻 Tecnologias Utilizadas
 
@@ -193,11 +207,12 @@ http://localhost:8765
 <img src=".github/multiplayer_com_evento.gif" width="100%" alt="Multiplayer Com Evento" />
 
 ### Autenticação com Clerk
-<img src=".github/auth.gif" width="100%" alt="Autenticação" />
+<img src=".github/sobre_detalhado.gif" width="100%" alt="Sobre" />
 
 
 ### Sobre (+ Minigames Escondidos)
-<img src=".github/sobre_detalhado.gif" width="100%" alt="Sobre" />
+<img src=".github/auth.gif" width="100%" alt="Autenticação" />
+
 
 ---
 

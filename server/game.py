@@ -60,15 +60,15 @@ def make_room_id() -> str:
 # ── Event coroutine ────────────────────────────────────────────────────────────
 
 async def fire_event(room_id: str) -> None:
-    # Random moment within [10s, 62s] of match start (5s before the 67s end)
-    delay = random.uniform(10, 62)
+    # TODO: restore random timing — fixed at 10s for testing
+    delay = 10.0
     await asyncio.sleep(delay)
 
     if room_state.get(room_id) != 'in_progress':
         return
 
     event_id = "absolute_cinema"
-    duration = 5
+    duration = 10
 
     # Bounded queue: first put_nowait wins; second raises QueueFull (ignored)
     q: asyncio.Queue = asyncio.Queue(maxsize=1)

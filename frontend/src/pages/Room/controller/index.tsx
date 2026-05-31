@@ -49,6 +49,7 @@ export function useRoomController() {
   const [localGlowFading, setLocalGlowFading] = useState(false)
   const [opponentGlowActive, setOpponentGlowActive] = useState(false)
   const [opponentGlowFading, setOpponentGlowFading] = useState(false)
+  const [eventWinnerName, setEventWinnerName] = useState<string | null>(null)
 
   const activeEventIdRef = useRef<string | null>(null)
   const sendMessageRef = useRef<((msg: object) => void) | null>(null)
@@ -107,21 +108,30 @@ export function useRoomController() {
   useEffect(() => {
     if (!eventWinner) return
     setDetectionMode('normal')
-    setEventPanelVisible(false)
 
     const isMe = eventWinner.winnerId === user?.id
+    const name = isMe ? myNick : matchCtx.oppNick
+    setEventWinnerName(name)
+
+    // Keep panel visible to show winner, then slide out after 3s
+    const tHide = setTimeout(() => {
+      setEventPanelVisible(false)
+      setEventWinnerName(null)
+    }, 3000)
+
+    // Glow effect on the correct panel
     if (isMe) {
       setLocalGlowActive(true); setLocalGlowFading(false)
       const t1 = setTimeout(() => setLocalGlowFading(true), 4500)
       const t2 = setTimeout(() => { setLocalGlowActive(false); setLocalGlowFading(false) }, 5000)
-      return () => { clearTimeout(t1); clearTimeout(t2) }
+      return () => { clearTimeout(tHide); clearTimeout(t1); clearTimeout(t2) }
     } else {
       setOpponentGlowActive(true); setOpponentGlowFading(false)
       const t1 = setTimeout(() => setOpponentGlowFading(true), 4500)
       const t2 = setTimeout(() => { setOpponentGlowActive(false); setOpponentGlowFading(false) }, 5000)
-      return () => { clearTimeout(t1); clearTimeout(t2) }
+      return () => { clearTimeout(tHide); clearTimeout(t1); clearTimeout(t2) }
     }
-  }, [eventWinner, user?.id])
+  }, [eventWinner, user?.id, myNick, matchCtx.oppNick])
 
   // ── Event: expired ───────────────────────────────────────────────────────────
   useEffect(() => {
@@ -167,6 +177,7 @@ export function useRoomController() {
     // Event system
     eventPanelVisible,
     eventCountdown,
+    eventWinnerName,
     localGlowActive,
     localGlowFading,
     opponentGlowActive,

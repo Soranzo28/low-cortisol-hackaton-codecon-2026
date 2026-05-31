@@ -15,7 +15,7 @@ export function RoomView(props: RoomViewProps) {
     mpStatus, opponentCount, countdown,
     remaining, gameOver, latencyMs, opponentReconnecting, navigate,
     isTrain, user, myNick,
-    eventPanelVisible, eventCountdown,
+    eventPanelVisible, eventCountdown, eventWinnerName,
     localGlowActive, localGlowFading,
     opponentGlowActive, opponentGlowFading,
   } = props
@@ -116,7 +116,7 @@ export function RoomView(props: RoomViewProps) {
                   transition: 'opacity 0.5s ease',
                 }} />
               )}
-              <EventPanel visible={eventPanelVisible} countdown={eventCountdown} />
+              <EventPanel visible={eventPanelVisible} countdown={eventCountdown} winnerName={eventWinnerName} />
             </div>
             <PlayerBelowInfo name={matchCtx.oppNick} rankingScore={matchCtx.oppScore} avatarUrl={matchCtx.oppImageUrl ?? undefined} />
           </div>
@@ -183,7 +183,7 @@ function PlayerBelowInfo({ name, rankingScore, avatarUrl }: { name: string; rank
   )
 }
 
-function EventPanel({ visible, countdown }: { visible: boolean; countdown: number }) {
+function EventPanel({ visible, countdown, winnerName }: { visible: boolean; countdown: number; winnerName: string | null }) {
   return (
     <div style={{
       position: 'absolute',
@@ -194,9 +194,9 @@ function EventPanel({ visible, countdown }: { visible: boolean; countdown: numbe
       zIndex: 20,
       transform: visible ? 'translateX(0)' : 'translateX(110%)',
       transition: 'transform 0.45s cubic-bezier(0.16, 1, 0.3, 1)',
-      background: 'rgba(10,10,20,0.92)',
+      background: winnerName ? 'rgba(0,20,10,0.94)' : 'rgba(10,10,20,0.92)',
       backdropFilter: 'blur(12px)',
-      border: '1px solid rgba(255,255,255,0.1)',
+      border: `1px solid ${winnerName ? 'rgba(0,255,136,0.25)' : 'rgba(255,255,255,0.1)'}`,
       borderRight: 'none',
       borderRadius: '1rem 0 0 1rem',
       display: 'flex',
@@ -206,27 +206,42 @@ function EventPanel({ visible, countdown }: { visible: boolean; countdown: numbe
       padding: '1.25rem 1.5rem',
       gap: '0.85rem',
       pointerEvents: 'none',
+      transition: 'transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), background 0.4s ease, border-color 0.4s ease',
     }}>
-      <span style={{ color: '#f59e0b', fontSize: '0.7rem', fontWeight: 700, fontFamily: "'Inter', sans-serif", letterSpacing: '0.14em', textTransform: 'uppercase' }}>
-        ⚡ Evento
-      </span>
-      <p style={{ color: 'white', fontFamily: "'Inter', sans-serif", fontWeight: 700, fontSize: '1rem', textAlign: 'center', lineHeight: 1.4, margin: 0 }}>
-        Absolute Cinema!
-      </p>
-      <p style={{ color: 'rgba(255,255,255,0.75)', fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: '0.78rem', textAlign: 'center', lineHeight: 1.5, margin: 0 }}>
-        Mostre as duas palmas abertas pra câmera por 1 segundo!
-      </p>
-      <div style={{
-        width: 44, height: 44, borderRadius: '50%',
-        background: countdown <= 1 ? 'rgba(239,68,68,0.2)' : 'rgba(245,158,11,0.15)',
-        border: `2px solid ${countdown <= 1 ? '#ef4444' : '#f59e0b'}`,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        transition: 'background 0.3s, border-color 0.3s',
-      }}>
-        <span style={{ color: countdown <= 1 ? '#ef4444' : '#f59e0b', fontWeight: 800, fontSize: '1.1rem', fontFamily: "'Inter', sans-serif", fontVariantNumeric: 'tabular-nums' }}>
-          {Math.max(0, countdown)}
-        </span>
-      </div>
+      {winnerName ? (
+        <>
+          <span style={{ fontSize: '1.8rem' }}>🏆</span>
+          <p style={{ color: '#00ff88', fontFamily: "'Inter', sans-serif", fontWeight: 800, fontSize: '0.95rem', textAlign: 'center', lineHeight: 1.4, margin: 0, textShadow: '0 0 12px rgba(0,255,136,0.5)' }}>
+            {winnerName} ganhou o evento!
+          </p>
+          <p style={{ color: 'rgba(255,255,255,0.5)', fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: '0.72rem', textAlign: 'center', margin: 0 }}>
+            +15 pontos de bônus
+          </p>
+        </>
+      ) : (
+        <>
+          <span style={{ color: '#f59e0b', fontSize: '0.7rem', fontWeight: 700, fontFamily: "'Inter', sans-serif", letterSpacing: '0.14em', textTransform: 'uppercase' }}>
+            ⚡ Evento
+          </span>
+          <p style={{ color: 'white', fontFamily: "'Inter', sans-serif", fontWeight: 700, fontSize: '1rem', textAlign: 'center', lineHeight: 1.4, margin: 0 }}>
+            Absolute Cinema!
+          </p>
+          <p style={{ color: 'rgba(255,255,255,0.75)', fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: '0.78rem', textAlign: 'center', lineHeight: 1.5, margin: 0 }}>
+            Mostre as duas palmas abertas pra câmera por 1 segundo!
+          </p>
+          <div style={{
+            width: 44, height: 44, borderRadius: '50%',
+            background: countdown <= 2 ? 'rgba(239,68,68,0.2)' : 'rgba(245,158,11,0.15)',
+            border: `2px solid ${countdown <= 2 ? '#ef4444' : '#f59e0b'}`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            transition: 'background 0.3s, border-color 0.3s',
+          }}>
+            <span style={{ color: countdown <= 2 ? '#ef4444' : '#f59e0b', fontWeight: 800, fontSize: '1.1rem', fontFamily: "'Inter', sans-serif", fontVariantNumeric: 'tabular-nums' }}>
+              {Math.max(0, countdown)}
+            </span>
+          </div>
+        </>
+      )}
     </div>
   )
 }

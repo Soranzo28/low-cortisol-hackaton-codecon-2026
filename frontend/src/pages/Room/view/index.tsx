@@ -73,14 +73,27 @@ export function RoomView(props: RoomViewProps) {
       </div>
 
       {/* Main Content Area */}
-      <div className={`relative z-10 w-full flex-1 max-w-7xl mx-auto flex ${isMatched && !isMobile ? 'flex-row items-center' : 'flex-col items-center'} justify-center gap-6 md:gap-12`}>
-
+      <div
+        className="relative z-10"
+        style={{
+          width: '100%',
+          maxWidth: 1280,
+          margin: '0 auto',
+          flex: 1,
+          display: 'flex',
+          flexDirection: isMatched && !isMobile ? 'row' : 'column',
+          alignItems: isMatched && !isMobile ? 'flex-start' : 'center',
+          justifyContent: 'center',
+          gap: '3rem',
+        }}
+      >
         {/* Local player column */}
-        <div className={`flex flex-col items-center ${isMatched && !isMobile ? 'flex-1 max-w-[600px]' : 'w-full max-w-[600px]'}`}>
+        <div style={isMatched && !isMobile
+          ? { flex: '1 1 0', minWidth: 0, maxWidth: 600, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }
+          : { width: '100%', maxWidth: 600, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }
+        }>
           {/* Camera panel */}
-          <div
-            className="relative overflow-hidden rounded-3xl bg-neutral-900/60 border border-neutral-800 shadow-2xl backdrop-blur-sm aspect-square w-full"
-          >
+          <div className="relative overflow-hidden rounded-3xl bg-neutral-900/60 border border-neutral-800 shadow-2xl backdrop-blur-sm aspect-square w-full">
             {/* Glow border overlay */}
             {glowActive && (
               <div style={{
@@ -91,7 +104,6 @@ export function RoomView(props: RoomViewProps) {
                 transition: 'opacity 0.5s ease',
               }} />
             )}
-
             {!cameraReady && (
               <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-neutral-900/80">
                 <div className="w-10 h-10 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
@@ -102,8 +114,6 @@ export function RoomView(props: RoomViewProps) {
             <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none z-[5]" />
             {(isMatched || isTrain) && <PlayerInfoOverlay score={gameCount} latencyMs={latencyMs} />}
           </div>
-
-          {/* Below-panel: avatar + name (total score) */}
           {(isMatched || isTrain) && (
             <PlayerBelowInfo name={isTrain ? 'Treino' : 'Você'} rankingScore={matchCtx.myScore} />
           )}
@@ -111,9 +121,9 @@ export function RoomView(props: RoomViewProps) {
 
         {/* Opponent column */}
         {isMatched && (
-          <div className="flex flex-col items-center flex-1 max-w-[600px]">
-            {/* Camera + event overlay wrapper */}
-            <div className="relative w-full aspect-square">
+          <div style={{ flex: '1 1 0', minWidth: 0, maxWidth: 600, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
+            {/* Wrapper: overflow-hidden clips EventPanel slide animation */}
+            <div style={{ position: 'relative', width: '100%', overflow: 'hidden', borderRadius: '1.5rem' }}>
               <OpponentPanel
                 remoteVideoRef={remoteVideoRef}
                 opponentCount={opponentCount}
@@ -126,8 +136,6 @@ export function RoomView(props: RoomViewProps) {
                 onComplete={handleChallengeCompleted}
               />
             </div>
-
-            {/* Below-panel: avatar + name (total score) */}
             <PlayerBelowInfo name={matchCtx.oppNick} rankingScore={matchCtx.oppScore} />
           </div>
         )}

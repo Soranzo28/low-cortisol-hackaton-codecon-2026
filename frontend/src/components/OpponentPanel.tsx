@@ -11,7 +11,7 @@ export function OpponentPanel({ remoteVideoRef, opponentCount, latencyMs, isReco
   const lColor = latencyColor(latencyMs)
 
   return (
-    <div className="relative w-full h-full overflow-hidden rounded-3xl bg-neutral-900/60 border border-neutral-800 shadow-2xl backdrop-blur-sm">
+    <div className="relative w-full aspect-square overflow-hidden rounded-3xl bg-neutral-900/60 border border-neutral-800 shadow-2xl backdrop-blur-sm">
       <video
         ref={remoteVideoRef}
         autoPlay

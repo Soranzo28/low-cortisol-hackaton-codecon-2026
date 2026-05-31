@@ -31,7 +31,17 @@ export default function MiniGame() {
   // Handle Keys & Animation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (gameOverRef.current) return;
+      if (gameOverRef.current) {
+        if (e.key.toLowerCase() === 'r') {
+          setGameOver(false);
+          setScore(0);
+          setFloatingPoints([]);
+          setFoxState('idle');
+          setBartFrame(1);
+          setIsDancing(false);
+        }
+        return;
+      }
 
       if (e.key === '6' || e.key === '7') {
         if (e.key !== lastKeyRef.current) {
@@ -145,7 +155,7 @@ export default function MiniGame() {
             )}
             <img 
               src={getFoxImage()} 
-              alt="Raposa" 
+              alt="Gabi (Panda vermelho, programadora sênior, mas feliz)" 
               className={`w-full h-full object-contain ${foxState === 'looking' ? '-scale-x-100' : ''}`}
             />
           </div>
@@ -174,12 +184,12 @@ export default function MiniGame() {
       {gameOver && (
         <div className="absolute inset-0 bg-red-950/80 backdrop-blur-md flex flex-col items-center justify-center z-10 rounded-2xl">
           <h2 className="text-5xl font-black text-white mb-2 drop-shadow-[0_0_20px_rgba(220,38,38,0.8)]">PEGOU!</h2>
-          <p className="text-red-200 mb-8 text-lg">A raposa te viu fazendo 67.</p>
+          <p className="text-red-200 mb-8 text-lg">A Gabi te viu fazendo 67.</p>
           <button 
             onClick={restartGame}
             className="px-8 py-4 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl transition-all hover:scale-105 active:scale-95 shadow-[0_0_20px_rgba(220,38,38,0.4)]"
           >
-            Tentar Novamente
+            Reiniciar (Pressione R)
           </button>
         </div>
       )}

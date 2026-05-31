@@ -77,6 +77,15 @@ function isNerdUp(hand: Landmark[]): boolean {
   return indexUp && middleDown && ringDown && pinkyDown
 }
 
+// Rock On: index and pinky raised, middle and ring closed
+function isRockHand(hand: Landmark[]): boolean {
+  const indexUp    = hand[8].y  < hand[6].y    // index tip above index PIP
+  const pinkyUp    = hand[20].y < hand[18].y   // pinky tip above pinky PIP
+  const middleDown = hand[12].y >= hand[10].y  // middle closed
+  const ringDown   = hand[16].y >= hand[14].y  // ring closed
+  return indexUp && pinkyUp && middleDown && ringDown
+}
+
 // Debug: hand connections for HandLandmarker (21 landmarks)
 const HAND_CONNECTIONS: [number, number][] = [
   [0,1],[1,2],[2,3],[3,4],
@@ -92,6 +101,7 @@ function drawHandDebug(
   hands: Landmark[][],
   t: CoverTransform,
   activeIdx: number,  // index of the hand that matched the current event pose (-1 = none)
+  activeLabel: string = '✓ detected!',
 ) {
   const ctx = canvas.getContext('2d')
   if (!ctx) return
@@ -119,7 +129,7 @@ function drawHandDebug(
     if (isActive) {
       const tip = toScreen(hand[8].x, hand[8].y, t)
       ctx.font = 'bold 11px monospace'; ctx.fillStyle = '#4ade80'
-      ctx.fillText('☝ nerd up!', tip.x + 6, tip.y - 6)
+      ctx.fillText(activeLabel, tip.x + 6, tip.y - 6)
     }
   })
 }
@@ -316,15 +326,23 @@ export function useGestureDetector(
             poseDetected = hands.length >= 2 && hands.every(isOpenPalmFacingCamera)
 
           } else if (eventIdRef.current === 'nerd_up') {
-            // Any single hand with only the index finger raised
             const idx = hands.findIndex(isNerdUp)
             if (idx !== -1) { poseDetected = true; debugActiveIdx = idx }
+
+          } else if (eventIdRef.current === 'rock_on') {
+            const idx = hands.findIndex(isRockHand)
+            if (idx !== -1) { poseDetected = true; debugActiveIdx = idx }
           }
+
+          const debugLabel =
+            eventIdRef.current === 'nerd_up'  ? '☝ nerd up!'  :
+            eventIdRef.current === 'rock_on'  ? '🤘 rock on!' :
+            '✓ detected!'
 
           // Draw debug overlay in training mode
           if (drawOverlay && canvasRef.current && hands.length > 0) {
             const t = computeTransform(video, canvasRef.current)
-            drawHandDebug(canvasRef.current, hands, t, debugActiveIdx)
+            drawHandDebug(canvasRef.current, hands, t, debugActiveIdx, debugLabel)
           } else if (!drawOverlay) {
             clearCanvas()
           }

@@ -44,13 +44,12 @@ export function RoomView(props: RoomViewProps) {
           : <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: '3px', height: '100vh', background: 'linear-gradient(to bottom, transparent, rgba(255,255,255,0.4) 20%, rgba(255,255,255,0.4) 80%, transparent)', zIndex: 15, pointerEvents: 'none' }} />
       )}
 
-      {isMatched && <OpponentPanel remoteVideoRef={remoteVideoRef} opponentCount={opponentCount} latencyMs={latencyMs} isMobile={isMobile} oppNick={matchCtx.oppNick} oppRankingScore={matchCtx.oppScore} />}
+      {isMatched && <OpponentPanel remoteVideoRef={remoteVideoRef} opponentCount={opponentCount} latencyMs={latencyMs} isMobile={isMobile} oppNick={matchCtx.oppNick} oppRankingScore={matchCtx.oppScore} isReconnecting={opponentReconnecting} />}
       {remaining !== null && gameOver === null && <TimerBadge remaining={remaining} />}
       {countdown !== null && <CountdownOverlay value={countdown} />}
       {!isMatched && <StatusBadge status={gestureStatus} isMobile={isMobile} />}
       {(mpStatus === 'connecting' || mpStatus === 'waiting_peer') && <WaitingOverlay status={mpStatus} />}
       {gameOver !== null && <GameOverOverlay data={gameOver} onGoHome={() => navigate(ROUTES.HOME)} />}
-      {opponentReconnecting && <ReconnectingBanner timeout={15} />}
       {mpStatus === 'disconnected' && gameOver === null && !opponentReconnecting && <DisconnectedBanner onGoHome={() => navigate(ROUTES.HOME)} />}
     </div>
   )
@@ -146,37 +145,6 @@ function WaitingOverlay({ status }: { status: string }) {
       <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: '1.1rem', fontWeight: 600, fontFamily: "'Inter', sans-serif" }}>
         {status === 'connecting' ? 'Conectando à sala…' : 'Aguardando adversário entrar…'}
       </p>
-    </div>
-  )
-}
-
-function ReconnectingBanner({ timeout }: { timeout: number }) {
-  const [secs, setSecs] = useState(timeout)
-
-  useEffect(() => {
-    if (secs <= 0) return
-    const id = setInterval(() => setSecs(s => s - 1), 1000)
-    return () => clearInterval(id)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-  return (
-    <div style={{
-      position: 'absolute', top: 0, left: 0, right: 0, zIndex: 40,
-      padding: '0.75rem 2rem',
-      background: 'rgba(234,179,8,0.85)', backdropFilter: 'blur(6px)',
-      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      fontFamily: "'Inter', sans-serif",
-    }}>
-      <span style={{ color: 'black', fontWeight: 600, fontSize: '0.95rem' }}>
-        ⏳ Adversário desconectou — aguardando reconexão…
-      </span>
-      <span style={{
-        color: 'black', fontWeight: 700, fontSize: '1rem',
-        background: 'rgba(0,0,0,0.12)', borderRadius: '9999px',
-        padding: '0.2rem 0.75rem', fontVariantNumeric: 'tabular-nums',
-      }}>
-        {secs}s
-      </span>
     </div>
   )
 }

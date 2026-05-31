@@ -7,9 +7,10 @@ interface OpponentPanelProps {
   isMobile: boolean
   oppNick?: string
   oppRankingScore?: number
+  isReconnecting?: boolean
 }
 
-export function OpponentPanel({ remoteVideoRef, opponentCount, latencyMs, isMobile, oppNick = 'Adversário', oppRankingScore = 0 }: OpponentPanelProps) {
+export function OpponentPanel({ remoteVideoRef, opponentCount, latencyMs, isMobile, oppNick = 'Adversário', oppRankingScore = 0, isReconnecting = false }: OpponentPanelProps) {
   const panelStyle: React.CSSProperties = isMobile
     ? {
         position: 'absolute',
@@ -47,8 +48,35 @@ export function OpponentPanel({ remoteVideoRef, opponentCount, latencyMs, isMobi
           objectFit: 'cover',
           display: 'block',
           transform: 'scaleX(-1)',
+          filter: isReconnecting ? 'blur(12px) brightness(0.5)' : 'none',
+          transition: 'filter 0.4s ease',
         }}
       />
+
+      {isReconnecting && (
+        <div style={{
+          position: 'absolute', inset: 0, zIndex: 12,
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center', gap: '0.75rem',
+        }}>
+          <div style={{
+            width: 36, height: 36,
+            border: '3px solid rgba(255,255,255,0.2)',
+            borderTop: '3px solid rgba(255,255,255,0.85)',
+            borderRadius: '50%',
+            animation: 'spin 0.9s linear infinite',
+          }} />
+          <span style={{
+            color: 'rgba(255,255,255,0.9)',
+            fontSize: '0.9rem',
+            fontWeight: 600,
+            fontFamily: "'Inter', sans-serif",
+            letterSpacing: '0.04em',
+          }}>
+            Reconectando…
+          </span>
+        </div>
+      )}
 
       {/* Top-left: nick (score) */}
       <div style={playerNameStyle}>

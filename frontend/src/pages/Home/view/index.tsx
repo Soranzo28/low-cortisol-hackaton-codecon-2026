@@ -50,7 +50,7 @@ export function HomeView(props: HomeViewProps) {
 
       {/* User header (top-right) */}
       {isSignedIn && meData?.nick && (
-        <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
+        <div className="absolute top-4 right-4 z-30 flex items-center gap-2">
           {user?.imageUrl && (
             <img
               src={user.imageUrl}

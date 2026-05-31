@@ -86,6 +86,16 @@ function isRockHand(hand: Landmark[]): boolean {
   return indexUp && pinkyUp && middleDown && ringDown
 }
 
+// Thumbs Up: thumb tip above thumb MCP, all other fingers closed
+function isThumbsUp(hand: Landmark[]): boolean {
+  const thumbUp    = hand[4].y  < hand[2].y    // thumb tip above thumb MCP
+  const indexDown  = hand[8].y  >= hand[6].y   // index closed
+  const middleDown = hand[12].y >= hand[10].y  // middle closed
+  const ringDown   = hand[16].y >= hand[14].y  // ring closed
+  const pinkyDown  = hand[20].y >= hand[18].y  // pinky closed
+  return thumbUp && indexDown && middleDown && ringDown && pinkyDown
+}
+
 // Debug: hand connections for HandLandmarker (21 landmarks)
 const HAND_CONNECTIONS: [number, number][] = [
   [0,1],[1,2],[2,3],[3,4],
@@ -332,11 +342,16 @@ export function useGestureDetector(
           } else if (eventIdRef.current === 'rock_on') {
             const idx = hands.findIndex(isRockHand)
             if (idx !== -1) { poseDetected = true; debugActiveIdx = idx }
+
+          } else if (eventIdRef.current === 'thumbs_up') {
+            const idx = hands.findIndex(isThumbsUp)
+            if (idx !== -1) { poseDetected = true; debugActiveIdx = idx }
           }
 
           const debugLabel =
-            eventIdRef.current === 'nerd_up'  ? '☝ nerd up!'  :
-            eventIdRef.current === 'rock_on'  ? '🤘 rock on!' :
+            eventIdRef.current === 'nerd_up'   ? '☝ nerd up!'   :
+            eventIdRef.current === 'rock_on'   ? '🤘 rock on!'  :
+            eventIdRef.current === 'thumbs_up' ? '👍 joinha!'   :
             '✓ detected!'
 
           // Draw debug overlay in training mode

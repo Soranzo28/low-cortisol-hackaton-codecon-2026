@@ -4,6 +4,7 @@ import { useAuth, useUser } from '@clerk/clerk-react'
 import absoluteCinemaGif from '@/assets/absolute_cinema.gif'
 import dogPidaoGif from '@/assets/dog_pidao.gif'
 import rockGif from '@/assets/rock.gif'
+import likeGif from '@/assets/like.gif'
 import { useGestureDetector } from '@/hooks/useGestureDetector'
 import { useMultiplayer } from '@/hooks/useMultiplayer'
 import { ROUTES } from '@/routes'
@@ -209,6 +210,11 @@ export function useRoomController() {
       title: 'Rock On! 🤘',
       instruction: 'Faça o símbolo do rock com uma das mãos por 1 segundo!',
       gif: rockGif,
+    },
+    thumbs_up: {
+      title: 'Joinha! 👍',
+      instruction: 'Faça o joinha com uma das mãos por 1 segundo!',
+      gif: likeGif,
     },
   }
   const eventLabel = EVENT_LABELS[activeEventId ?? ''] ?? EVENT_LABELS['absolute_cinema']

@@ -219,6 +219,7 @@ const TRAIN_EVENTS = [
   { id: 'absolute_cinema', label: 'Absolute Cinema', icon: '🤲', desc: 'Duas palmas abertas por 1s' },
   { id: 'nerd_up',         label: 'Nerd Up',         icon: '☝', desc: 'Só o indicador levantado' },
   { id: 'rock_on',         label: 'Rock On',         icon: '🤘', desc: 'Indicador e mindinho levantados' },
+  { id: 'thumbs_up',      label: 'Joinha',          icon: '👍', desc: 'Só o polegar levantado' },
 ]
 
 function TrainEventSelector({ selected, onSelect }: { selected: string | null; onSelect: (id: string) => void }) {

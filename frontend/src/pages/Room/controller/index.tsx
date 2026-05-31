@@ -50,22 +50,36 @@ export function useRoomController() {
   const [opponentGlowActive, setOpponentGlowActive] = useState(false)
   const [opponentGlowFading, setOpponentGlowFading] = useState(false)
   const [eventWinnerName, setEventWinnerName] = useState<string | null>(null)
+  const [eventBonus, setEventBonus] = useState(0)
 
   const activeEventIdRef = useRef<string | null>(null)
   const sendMessageRef = useRef<((msg: object) => void) | null>(null)
+  const isTrainRef = useRef(false)
 
   const onEventComplete = useCallback(() => {
+    setDetectionMode('normal')
+    if (isTrainRef.current) {
+      // Training: show glow locally as feedback, no WS message
+      setLocalGlowActive(true); setLocalGlowFading(false)
+      setTimeout(() => setLocalGlowFading(true), 4500)
+      setTimeout(() => { setLocalGlowActive(false); setLocalGlowFading(false) }, 5000)
+      return
+    }
     const eventId = activeEventIdRef.current
     if (!eventId) return
     sendMessageRef.current?.({ type: 'event_complete', event_id: eventId })
     activeEventIdRef.current = null
-    setDetectionMode('normal')
-    setEventPanelVisible(false)
+    // Do NOT hide panel — server will send event_winner which handles panel + winner display
   }, [])
 
   // ── Gesture detector (mode-aware) ────────────────────────────────────────────
   const isTrain = new URLSearchParams(window.location.search).get('mode') === 'train'
+  isTrainRef.current = isTrain
   const { count, status: gestureStatus } = useGestureDetector(videoRef, canvasRef, isTrain, detectionMode, onEventComplete)
+
+  const toggleTrainEventMode = useCallback(() => {
+    setDetectionMode(prev => prev === 'event' ? 'normal' : 'event')
+  }, [])
 
   const countRef = useRef(0)
   countRef.current = count
@@ -112,14 +126,15 @@ export function useRoomController() {
     const isMe = eventWinner.winnerId === user?.id
     const name = isMe ? myNick : matchCtx.oppNick
     setEventWinnerName(name)
+    setEventPanelVisible(true)  // ensure panel is open to show winner
+    if (isMe) setEventBonus(eventWinner.bonus)
 
-    // Keep panel visible to show winner, then slide out after 3s
+    // Show winner for 3s then slide out
     const tHide = setTimeout(() => {
       setEventPanelVisible(false)
       setEventWinnerName(null)
     }, 3000)
 
-    // Glow effect on the correct panel
     if (isMe) {
       setLocalGlowActive(true); setLocalGlowFading(false)
       const t1 = setTimeout(() => setLocalGlowFading(true), 4500)
@@ -151,7 +166,7 @@ export function useRoomController() {
     }
   }, [remaining, gameOver, isTrain])
 
-  const gameCount = gameStartedRef.current ? Math.max(0, count - baseCountRef.current) : 0
+  const gameCount = (gameStartedRef.current ? Math.max(0, count - baseCountRef.current) : 0) + eventBonus
   const isMatched = mpStatus === 'matched'
 
   useEffect(() => {
@@ -182,5 +197,7 @@ export function useRoomController() {
     localGlowFading,
     opponentGlowActive,
     opponentGlowFading,
+    trainEventActive: isTrain && detectionMode === 'event',
+    toggleTrainEventMode,
   }
 }

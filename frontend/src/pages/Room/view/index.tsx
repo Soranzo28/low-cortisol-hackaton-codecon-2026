@@ -18,6 +18,7 @@ export function RoomView(props: RoomViewProps) {
     eventPanelVisible, eventCountdown, eventWinnerName,
     localGlowActive, localGlowFading,
     opponentGlowActive, opponentGlowFading,
+    trainEventActive, toggleTrainEventMode,
   } = props
 
   return (
@@ -30,10 +31,18 @@ export function RoomView(props: RoomViewProps) {
 
       {/* Header / Timer */}
       <div className="w-full h-12 md:h-16 shrink-0 relative z-20 flex justify-between items-start">
-        <div className="flex-1">
+        <div className="flex-1 flex items-center gap-2">
           {isTrain && (
             <button onClick={() => navigate(ROUTES.HOME)} className="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-white rounded-full text-sm font-semibold transition-colors">
               ← Voltar
+            </button>
+          )}
+          {isTrain && (
+            <button
+              onClick={toggleTrainEventMode}
+              className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors ${trainEventActive ? 'bg-amber-600 hover:bg-amber-500 text-white' : 'bg-neutral-800 hover:bg-neutral-700 text-white'}`}
+            >
+              {trainEventActive ? '⏹ Cancelar teste' : '🖐 Testar Absolute Cinema'}
             </button>
           )}
         </div>

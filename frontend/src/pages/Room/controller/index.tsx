@@ -47,7 +47,7 @@ export function useRoomController() {
   const baseCountRef = useRef(0)
   const gameStartedRef = useRef(false)
 
-  const { status: mpStatus, opponentCount, countdown, remaining, gameOver, latencyMs } = useMultiplayer({
+  const { status: mpStatus, opponentCount, countdown, remaining, gameOver, latencyMs, opponentReconnecting } = useMultiplayer({
     roomWsUrl,
     localCount: gameStartedRef.current ? Math.max(0, count - baseCountRef.current) : 0,
     localVideoRef: videoRef,
@@ -86,6 +86,6 @@ export function useRoomController() {
     videoRef, canvasRef, remoteVideoRef,
     isMobile, isMatched, cameraReady, matchCtx,
     gameCount, gestureStatus, mpStatus, opponentCount,
-    countdown, remaining, gameOver, latencyMs, navigate,
+    countdown, remaining, gameOver, latencyMs, opponentReconnecting, navigate,
   }
 }

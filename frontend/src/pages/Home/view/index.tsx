@@ -232,7 +232,7 @@ function RankingPanel({ ranking, rankingLoading, fetchRanking, meData }: {
             </div>
 
             {/* Ranking rows */}
-            <div className="flex flex-col gap-3 overflow-y-auto overflow-x-hidden pr-2 max-h-[25rem] pb-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-neutral-800 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
+            <div className="flex flex-col gap-3 overflow-y-auto max-h-[25rem] pb-2 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-neutral-800 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
               {ranking.map((entry, i) => {
                 const isMe = meData?.nick === entry.nick
 
@@ -242,7 +242,7 @@ function RankingPanel({ ranking, rankingLoading, fetchRanking, meData }: {
                     className={`
                       grid grid-cols-[2rem_1fr_6rem_4.5rem] gap-4 md:gap-5 items-center px-6 md:px-8 h-[4.25rem] min-h-[4.25rem] rounded-2xl transition-all
                       ${isMe
-                        ? 'bg-neutral-800/80 border border-neutral-700 text-white shadow-lg scale-[1.02] z-10 relative'
+                        ? 'bg-neutral-800/80 border border-neutral-600 text-white shadow-lg z-10 relative'
                         : 'bg-neutral-900/50 border border-neutral-800 text-neutral-300 hover:bg-neutral-800 hover:text-white'
                       }
                     `}

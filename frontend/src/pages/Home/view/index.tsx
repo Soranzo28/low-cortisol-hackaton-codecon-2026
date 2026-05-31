@@ -77,7 +77,7 @@ export function HomeView(props: HomeViewProps) {
       <div className="relative z-10 min-h-screen flex items-center justify-center px-4 py-16">
         <div className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-start">
 
-          {/* LEFT COLUMN — Ranking */}
+          {/* RIGHT COLUMN — Ranking */}
           <RankingPanel
             ranking={ranking}
             rankingLoading={rankingLoading}
@@ -85,8 +85,8 @@ export function HomeView(props: HomeViewProps) {
             meData={meData}
           />
 
-          {/* RIGHT COLUMN — Brand + Menu / Actions */}
-          <div className="w-full order-1 lg:order-2 flex flex-col items-center">
+          {/* LEFT COLUMN — Brand + Menu / Actions */}
+          <div className="w-full order-1 flex flex-col items-center">
 
             {/* Brand */}
             <div className="flex flex-col items-center mb-10">
@@ -187,7 +187,7 @@ function RankingPanel({ ranking, rankingLoading, fetchRanking, meData }: {
   meData: MeData | null
 }) {
   return (
-    <div className="w-full order-2 lg:order-1 flex flex-col items-center">
+    <div className="w-full order-2 flex flex-col items-center">
       <div className="w-full max-w-md flex flex-col gap-3">
         {/* Ranking header */}
         <div className="flex items-center justify-between mb-4 px-2">
@@ -222,12 +222,11 @@ function RankingPanel({ ranking, rankingLoading, fetchRanking, meData }: {
         ) : (
           <div className="flex flex-col gap-3">
             {/* Table header */}
-            <div className="grid grid-cols-[2.5rem_1fr_4.5rem_3.5rem_4rem] gap-2 px-4 text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-[-0.25rem] ml-1">
+            <div className="grid grid-cols-[2.5rem_1fr_6rem_4rem] gap-2 px-4 text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-[-0.25rem] ml-1">
               <span>#</span>
-              <span>Jogador</span>
-              <span className="text-right">Pontos</span>
-              <span className="text-right">Wins</span>
-              <span className="text-right">Partidas</span>
+              <span>Nome</span>
+              <span className="text-right">Auras Farmadas</span>
+              <span className="text-right">W / L</span>
             </div>
 
             {/* Ranking rows */}
@@ -244,7 +243,7 @@ function RankingPanel({ ranking, rankingLoading, fetchRanking, meData }: {
                 <div
                   key={entry.nick}
                   className={`
-                    grid grid-cols-[2.5rem_1fr_4.5rem_3.5rem_4rem] gap-2 items-center px-4 h-16 md:h-14 rounded-2xl transition-all
+                    grid grid-cols-[2.5rem_1fr_6rem_4rem] gap-2 items-center px-4 h-16 md:h-14 rounded-2xl transition-all
                     ${isMe
                       ? 'bg-indigo-500/15 border border-indigo-500/30 shadow-[0_0_20px_-5px_rgba(99,102,241,0.2)] scale-[1.02] z-10 relative'
                       : i < 3
@@ -271,14 +270,11 @@ function RankingPanel({ ranking, rankingLoading, fetchRanking, meData }: {
                     {entry.total_score.toLocaleString()}
                   </span>
 
-                  {/* Wins */}
-                  <span className="text-sm text-right tabular-nums text-emerald-400 font-medium">
-                    {entry.wins}
-                  </span>
-
-                  {/* Matches */}
-                  <span className="text-sm text-right tabular-nums text-neutral-500 font-medium">
-                    {entry.matches_played}
+                  {/* W / L */}
+                  <span className="text-sm text-right tabular-nums font-semibold whitespace-nowrap">
+                    <span className="text-emerald-400">{entry.wins}W</span>
+                    <span className="text-neutral-600 font-normal mx-1">/</span>
+                    <span className="text-red-400">{entry.matches_played - entry.wins}L</span>
                   </span>
                 </div>
               )

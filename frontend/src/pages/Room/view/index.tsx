@@ -15,7 +15,7 @@ export function RoomView(props: RoomViewProps) {
     matchCtx, gameCount, gestureStatus,
     mpStatus, opponentCount, countdown,
     remaining, gameOver, latencyMs, opponentReconnecting, navigate,
-    isTrain,
+    isTrain, user, myNick,
   } = props
 
   const [eventVisible, setEventVisible] = useState(false)
@@ -115,7 +115,7 @@ export function RoomView(props: RoomViewProps) {
             {(isMatched || isTrain) && <PlayerInfoOverlay score={gameCount} latencyMs={latencyMs} />}
           </div>
           {(isMatched || isTrain) && (
-            <PlayerBelowInfo name={isTrain ? 'Treino' : 'Você'} rankingScore={matchCtx.myScore} />
+            <PlayerBelowInfo name={isTrain ? 'Treino' : myNick} rankingScore={matchCtx.myScore} avatarUrl={user?.imageUrl ?? undefined} />
           )}
         </div>
 
@@ -188,11 +188,11 @@ function PlayerInfoOverlay({ score, latencyMs }: { score: number; latencyMs: num
   )
 }
 
-function PlayerBelowInfo({ name, rankingScore }: { name: string; rankingScore: number }) {
+function PlayerBelowInfo({ name, rankingScore, avatarUrl }: { name: string; rankingScore: number; avatarUrl?: string }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.4rem', marginTop: '0.75rem' }}>
       <div style={{ width: 44, height: 44, borderRadius: '50%', overflow: 'hidden', border: '2px solid rgba(255,255,255,0.22)', flexShrink: 0 }}>
-        <img src={defaultIconUrl} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        <img src={avatarUrl || defaultIconUrl} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
       </div>
       <span style={{ color: 'rgba(255,255,255,0.9)', fontWeight: 600, fontFamily: "'Inter', sans-serif", fontSize: '0.85rem', letterSpacing: '0.06em' }}>
         {name.toUpperCase()} ({String(rankingScore).padStart(3, '0')})

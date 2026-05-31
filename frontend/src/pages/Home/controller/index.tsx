@@ -52,6 +52,7 @@ export function useHomeController() {
         if (!r.ok) return
         const data: MeData = await r.json()
         setMeData(data)
+        if (data.nick) sessionStorage.setItem('my_nick', data.nick)
         if (!data.nick) {
           setNickInput(suggestNick(user?.firstName))
           setShowNickModal(true)
@@ -104,6 +105,7 @@ export function useHomeController() {
       if (!r.ok) throw new Error('failed')
       const data: MeData = await r.json()
       setMeData(data)
+      if (data.nick) sessionStorage.setItem('my_nick', data.nick)
       setShowNickModal(false)
       setNickInput('')
       fetchRanking() // refresh ranking after nick change

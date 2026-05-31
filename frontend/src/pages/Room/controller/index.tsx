@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useAuth } from '@clerk/clerk-react'
+import { useAuth, useUser } from '@clerk/clerk-react'
 import { useGestureDetector } from '@/hooks/useGestureDetector'
 import { useMultiplayer } from '@/hooks/useMultiplayer'
 import { ROUTES } from '@/routes'
@@ -34,6 +34,8 @@ export function useRoomController() {
   const isMobile = useIsMobile()
   const matchCtx = loadMatchContext()
   const { getToken } = useAuth()
+  const { user } = useUser()
+  const myNick = sessionStorage.getItem('my_nick') ?? user?.firstName ?? 'Você'
 
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -88,6 +90,6 @@ export function useRoomController() {
     isMobile, isMatched, cameraReady, matchCtx,
     gameCount, gestureStatus, mpStatus, opponentCount,
     countdown, remaining, gameOver, latencyMs, opponentReconnecting, navigate,
-    isTrain,
+    isTrain, user, myNick,
   }
 }

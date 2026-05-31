@@ -48,7 +48,7 @@ export function useGameAudio() {
     auraTimerRef.current = setTimeout(() => {
       audio.currentTime = 0
       audio.play().catch(() => {})
-    }, 10_000)
+    }, 2_000)
   }, [getAura])
 
   /** Stop aura immediately. */

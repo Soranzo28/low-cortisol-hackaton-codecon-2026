@@ -21,6 +21,7 @@ export function RoomView(props: RoomViewProps) {
     localGlowActive, localGlowFading,
     opponentGlowActive, opponentGlowFading,
     trainSelectedEvent, selectTrainEvent,
+    stopAllAudio,
   } = props
 
   return (
@@ -34,7 +35,7 @@ export function RoomView(props: RoomViewProps) {
       {/* Back button — train mode only, absolute like About page */}
       {isTrain && (
         <button
-          onClick={() => navigate(ROUTES.HOME)}
+          onClick={() => { stopAllAudio(); navigate(ROUTES.HOME) }}
           className="absolute top-6 left-6 md:top-8 md:left-8 w-12 h-12 rounded-full bg-neutral-900/60 border border-neutral-800 flex items-center justify-center text-neutral-400 hover:text-white hover:bg-neutral-800 transition-all backdrop-blur-md z-50 hover:scale-105 active:scale-95"
           title="Voltar para o Início"
         >
@@ -138,8 +139,8 @@ export function RoomView(props: RoomViewProps) {
       {countdown !== null && <CountdownOverlay value={countdown} />}
       {!isMatched && <StatusBadge status={gestureStatus} isMobile={isMobile} />}
       {(mpStatus === 'connecting' || mpStatus === 'waiting_peer') && <WaitingOverlay status={mpStatus} />}
-      {gameOver !== null && <GameOverOverlay data={gameOver} onGoHome={() => navigate(ROUTES.HOME)} />}
-      {mpStatus === 'disconnected' && gameOver === null && !opponentReconnecting && <DisconnectedBanner onGoHome={() => navigate(ROUTES.HOME)} />}
+      {gameOver !== null && <GameOverOverlay data={gameOver} onGoHome={() => { stopAllAudio(); navigate(ROUTES.HOME) }} />}
+      {mpStatus === 'disconnected' && gameOver === null && !opponentReconnecting && <DisconnectedBanner onGoHome={() => { stopAllAudio(); navigate(ROUTES.HOME) }} />}
     </div>
   )
 }

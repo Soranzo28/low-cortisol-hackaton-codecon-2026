@@ -7,6 +7,7 @@ import rockGif from '@/assets/rock.gif'
 import likeGif from '@/assets/like.gif'
 import { useGestureDetector } from '@/hooks/useGestureDetector'
 import { useMultiplayer } from '@/hooks/useMultiplayer'
+import { useGameAudio } from '@/hooks/useGameAudio'
 import { ROUTES } from '@/routes'
 import type { MatchContext } from '../types'
 
@@ -40,6 +41,7 @@ export function useRoomController() {
   const { getToken } = useAuth()
   const { user } = useUser()
   const myNick = sessionStorage.getItem('my_nick') ?? user?.firstName ?? 'Você'
+  const { scheduleAura, stopAura, playLow, stopAll: stopAllAudio } = useGameAudio()
 
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -187,11 +189,20 @@ export function useRoomController() {
     if ((remaining !== null || isTrain) && !gameStartedRef.current) {
       gameStartedRef.current = true
       baseCountRef.current = countRef.current
+      // Schedule aura.mp3 to start 10s after match begins (30% vol)
+      if (!isTrain) scheduleAura()
     }
     if (!isTrain && remaining === null && gameOver === null) {
       gameStartedRef.current = false
     }
-  }, [remaining, gameOver, isTrain])
+  }, [remaining, gameOver, isTrain, scheduleAura])
+
+  // ── Audio: stop aura on game over, play low.mp3 on victory ──────────────────
+  useEffect(() => {
+    if (!gameOver) return
+    stopAura()
+    if (gameOver.winner === 'you') playLow()
+  }, [gameOver, stopAura, playLow])
 
   const gameCount = (gameStartedRef.current ? Math.max(0, count - baseCountRef.current) : 0) + eventBonus
 
@@ -221,8 +232,11 @@ export function useRoomController() {
   const isMatched = mpStatus === 'matched'
 
   useEffect(() => {
-    if (mpStatus === 'error') navigate(ROUTES.HOME, { replace: true })
-  }, [mpStatus, navigate])
+    if (mpStatus === 'error') {
+      stopAllAudio()
+      navigate(ROUTES.HOME, { replace: true })
+    }
+  }, [mpStatus, navigate, stopAllAudio])
 
   const [cameraReady, setCameraReady] = useState(false)
   useEffect(() => {
@@ -254,5 +268,6 @@ export function useRoomController() {
     opponentGlowFading,
     trainSelectedEvent,
     selectTrainEvent,
+    stopAllAudio,
   }
 }

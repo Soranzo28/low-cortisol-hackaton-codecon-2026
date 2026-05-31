@@ -28,8 +28,14 @@ player_info: dict[int, dict] = {}
 room_player_info: dict[str, list[dict]] = {}
 room_state: dict[str, str] = {}       # room_id -> 'waiting' | 'in_progress' | 'finished'
 room_remaining: dict[str, int] = {}   # room_id -> seconds remaining in match
-room_reconnect_tasks: dict[str, asyncio.Task] = {}  # grace-period tasks on disconnect
+room_reconnect_tasks: dict[str, asyncio.Task] = {}
 room_ws_to_uid: dict[str, dict[int, str]] = {}  # room_id -> {id(ws): clerk_user_id}
+
+# ── Event state ────────────────────────────────────────────────────────────────
+
+room_event_tasks: dict[str, asyncio.Task] = {}
+room_event_trigger: dict[str, asyncio.Queue] = {}  # first event_complete signal wins
+room_event_bonus: dict[str, dict[str, int]] = {}   # {clerk_user_id: bonus_points}
 
 # ── Transport helpers ──────────────────────────────────────────────────────────
 
@@ -51,12 +57,57 @@ def make_room_id() -> str:
     return f"{prefix}_{uuid.uuid4().hex}{uuid.uuid4().hex}"
 
 
+# ── Event coroutine ────────────────────────────────────────────────────────────
+
+async def fire_event(room_id: str) -> None:
+    # Random moment within [10s, 62s] of match start (5s before the 67s end)
+    delay = random.uniform(10, 62)
+    await asyncio.sleep(delay)
+
+    if room_state.get(room_id) != 'in_progress':
+        return
+
+    event_id = "absolute_cinema"
+    duration = 5
+
+    # Bounded queue: first put_nowait wins; second raises QueueFull (ignored)
+    q: asyncio.Queue = asyncio.Queue(maxsize=1)
+    room_event_trigger[room_id] = q
+
+    for ws in rooms.get(room_id, []):
+        await ws_send(ws, {"type": "event_start", "event_id": event_id, "duration": duration})
+    log.info("Room %s — event '%s' fired.", room_id[:16], event_id)
+
+    winner_uid: str | None = None
+    try:
+        uid, received_id = await asyncio.wait_for(q.get(), timeout=float(duration))
+        if received_id == event_id:
+            winner_uid = uid
+    except asyncio.TimeoutError:
+        pass
+    finally:
+        room_event_trigger.pop(room_id, None)
+
+    bonus = 15
+    if winner_uid:
+        room_event_bonus[room_id] = {winner_uid: bonus}
+        for ws in rooms.get(room_id, []):
+            await ws_send(ws, {"type": "event_winner", "winner_id": winner_uid, "bonus": bonus})
+        log.info("Room %s — event winner: %s (+%d)", room_id[:16], winner_uid[:8], bonus)
+    else:
+        for ws in rooms.get(room_id, []):
+            await ws_send(ws, {"type": "event_expired"})
+        log.info("Room %s — event expired with no winner.", room_id[:16])
+
+
 # ── Match timer ────────────────────────────────────────────────────────────────
 
 async def match_timer(room_id: str) -> None:
     async def broadcast(msg: dict) -> None:
         for ws in rooms.get(room_id, []):
             await ws_send(ws, msg)
+
+    event_task_local: asyncio.Task | None = None
 
     try:
         for i in range(10, 0, -1):
@@ -67,6 +118,10 @@ async def match_timer(room_id: str) -> None:
         await broadcast({"type": "game_start"})
         log.info("Room %s — match started.", room_id[:16])
 
+        # Launch event concurrently with the match timer
+        event_task_local = asyncio.create_task(fire_event(room_id))
+        room_event_tasks[room_id] = event_task_local
+
         for i in range(67, -1, -1):
             room_remaining[room_id] = i
             await broadcast({"type": "tick", "remaining": i})
@@ -74,9 +129,21 @@ async def match_timer(room_id: str) -> None:
                 break
             await asyncio.sleep(1)
 
+        # Cancel event task if it hasn't finished yet
+        if event_task_local and not event_task_local.done():
+            event_task_local.cancel()
+
         scores = room_scores.get(room_id, {})
         players = rooms.get(room_id, [])
         room_state[room_id] = 'finished'
+
+        # Apply event bonus to the winner's score
+        event_bonus = room_event_bonus.get(room_id, {})
+        if event_bonus:
+            ws_uid_map = room_ws_to_uid.get(room_id, {})
+            for ws_id_key, uid in ws_uid_map.items():
+                if uid in event_bonus:
+                    scores[ws_id_key] = scores.get(ws_id_key, 0) + event_bonus[uid]
 
         if len(players) == 2:
             s0 = scores.get(id(players[0]), 0)
@@ -100,7 +167,6 @@ async def match_timer(room_id: str) -> None:
                     log.warning("record_match failed: %s", e)
 
         elif len(players) == 1:
-            # Opponent disconnected during grace period and timer ran out
             stayer = players[0]
             s_stayer = scores.get(id(stayer), 0)
             s_opponent = next((v for k, v in scores.items() if k != id(stayer)), 0)
@@ -108,6 +174,11 @@ async def match_timer(room_id: str) -> None:
             log.info("Room %s — game over (1 player): stayer=%d opponent=%d", room_id[:16], s_stayer, s_opponent)
 
     except asyncio.CancelledError:
+        if event_task_local and not event_task_local.done():
+            event_task_local.cancel()
         log.info("Room %s — timer cancelled.", room_id[:16])
     finally:
         _match_tasks.pop(room_id, None)
+        room_event_tasks.pop(room_id, None)
+        room_event_bonus.pop(room_id, None)
+        room_event_trigger.pop(room_id, None)

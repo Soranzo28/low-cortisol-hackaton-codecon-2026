@@ -1,4 +1,3 @@
-import { useState, useEffect, useRef } from 'react'
 import { StatusBadge } from '@/components/StatusBadge'
 import { OpponentPanel } from '@/components/OpponentPanel'
 import { ROUTES } from '@/routes'
@@ -16,31 +15,10 @@ export function RoomView(props: RoomViewProps) {
     mpStatus, opponentCount, countdown,
     remaining, gameOver, latencyMs, opponentReconnecting, navigate,
     isTrain, user, myNick,
+    eventPanelVisible, eventCountdown,
+    localGlowActive, localGlowFading,
+    opponentGlowActive, opponentGlowFading,
   } = props
-
-  const [eventVisible, setEventVisible] = useState(false)
-  const [glowActive, setGlowActive] = useState(false)
-  const [glowFading, setGlowFading] = useState(false)
-  const eventFiredRef = useRef(false)
-
-  useEffect(() => {
-    if (isMatched && !eventFiredRef.current) {
-      eventFiredRef.current = true
-      const t = setTimeout(() => {
-        setEventVisible(true)
-        setTimeout(() => setEventVisible(false), 8000)
-      }, 10000)
-      return () => clearTimeout(t)
-    }
-  }, [isMatched])
-
-  const handleChallengeCompleted = () => {
-    setEventVisible(false)
-    setGlowActive(true)
-    setGlowFading(false)
-    setTimeout(() => setGlowFading(true), 4500)
-    setTimeout(() => { setGlowActive(false); setGlowFading(false) }, 5000)
-  }
 
   return (
     <div className="relative min-h-screen w-full flex flex-col p-4 md:p-8 overflow-hidden bg-[#09090b] text-neutral-200 font-sans">
@@ -94,13 +72,12 @@ export function RoomView(props: RoomViewProps) {
         }>
           {/* Camera panel */}
           <div className="relative overflow-hidden rounded-3xl bg-neutral-900/60 border border-neutral-800 shadow-2xl backdrop-blur-sm aspect-square w-full">
-            {/* Glow border overlay */}
-            {glowActive && (
+            {localGlowActive && (
               <div style={{
                 position: 'absolute', inset: 0, borderRadius: 'inherit', zIndex: 20, pointerEvents: 'none',
                 border: '2px solid #00ff88',
-                animation: glowFading ? 'none' : 'glow-pulse 1.2s ease-in-out infinite',
-                opacity: glowFading ? 0 : 1,
+                animation: localGlowFading ? 'none' : 'glow-pulse 1.2s ease-in-out infinite',
+                opacity: localGlowFading ? 0 : 1,
                 transition: 'opacity 0.5s ease',
               }} />
             )}
@@ -130,11 +107,16 @@ export function RoomView(props: RoomViewProps) {
                 latencyMs={latencyMs}
                 isReconnecting={opponentReconnecting}
               />
-              <EventPanel
-                visible={eventVisible}
-                text="Desafio: faça 5 movimentos seguidos sem parar!"
-                onComplete={handleChallengeCompleted}
-              />
+              {opponentGlowActive && (
+                <div style={{
+                  position: 'absolute', inset: 0, borderRadius: 'inherit', zIndex: 20, pointerEvents: 'none',
+                  border: '2px solid #00ff88',
+                  animation: opponentGlowFading ? 'none' : 'glow-pulse 1.2s ease-in-out infinite',
+                  opacity: opponentGlowFading ? 0 : 1,
+                  transition: 'opacity 0.5s ease',
+                }} />
+              )}
+              <EventPanel visible={eventPanelVisible} countdown={eventCountdown} />
             </div>
             <PlayerBelowInfo name={matchCtx.oppNick} rankingScore={matchCtx.oppScore} avatarUrl={matchCtx.oppImageUrl ?? undefined} />
           </div>
@@ -201,19 +183,19 @@ function PlayerBelowInfo({ name, rankingScore, avatarUrl }: { name: string; rank
   )
 }
 
-function EventPanel({ visible, text, onComplete }: { visible: boolean; text: string; onComplete: () => void }) {
+function EventPanel({ visible, countdown }: { visible: boolean; countdown: number }) {
   return (
     <div style={{
       position: 'absolute',
-      top: '18%',
+      top: '12%',
       right: 0,
-      bottom: '18%',
-      width: '74%',
+      bottom: '12%',
+      width: '78%',
       zIndex: 20,
       transform: visible ? 'translateX(0)' : 'translateX(110%)',
       transition: 'transform 0.45s cubic-bezier(0.16, 1, 0.3, 1)',
-      background: 'rgba(10,10,20,0.88)',
-      backdropFilter: 'blur(10px)',
+      background: 'rgba(10,10,20,0.92)',
+      backdropFilter: 'blur(12px)',
       border: '1px solid rgba(255,255,255,0.1)',
       borderRight: 'none',
       borderRadius: '1rem 0 0 1rem',
@@ -222,33 +204,29 @@ function EventPanel({ visible, text, onComplete }: { visible: boolean; text: str
       alignItems: 'center',
       justifyContent: 'center',
       padding: '1.25rem 1.5rem',
-      gap: '1rem',
-      pointerEvents: visible ? 'auto' : 'none',
+      gap: '0.85rem',
+      pointerEvents: 'none',
     }}>
-      <span style={{ color: '#f59e0b', fontSize: '0.7rem', fontWeight: 700, fontFamily: "'Inter', sans-serif", letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+      <span style={{ color: '#f59e0b', fontSize: '0.7rem', fontWeight: 700, fontFamily: "'Inter', sans-serif", letterSpacing: '0.14em', textTransform: 'uppercase' }}>
         ⚡ Evento
       </span>
-      <p style={{ color: 'white', fontFamily: "'Inter', sans-serif", fontWeight: 600, fontSize: '0.9rem', textAlign: 'center', lineHeight: 1.4, margin: 0 }}>
-        {text}
+      <p style={{ color: 'white', fontFamily: "'Inter', sans-serif", fontWeight: 700, fontSize: '1rem', textAlign: 'center', lineHeight: 1.4, margin: 0 }}>
+        Absolute Cinema!
       </p>
-      <button
-        onClick={onComplete}
-        style={{
-          background: 'linear-gradient(135deg, #00ff88, #00cc6a)',
-          color: '#000',
-          border: 'none',
-          borderRadius: '9999px',
-          padding: '0.5rem 1.25rem',
-          fontSize: '0.8rem',
-          fontWeight: 700,
-          cursor: 'pointer',
-          fontFamily: "'Inter', sans-serif",
-          letterSpacing: '0.04em',
-          marginTop: '0.25rem',
-        }}
-      >
-        Cumpri o desafio ✓
-      </button>
+      <p style={{ color: 'rgba(255,255,255,0.75)', fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: '0.78rem', textAlign: 'center', lineHeight: 1.5, margin: 0 }}>
+        Mostre as duas palmas abertas pra câmera por 1 segundo!
+      </p>
+      <div style={{
+        width: 44, height: 44, borderRadius: '50%',
+        background: countdown <= 1 ? 'rgba(239,68,68,0.2)' : 'rgba(245,158,11,0.15)',
+        border: `2px solid ${countdown <= 1 ? '#ef4444' : '#f59e0b'}`,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        transition: 'background 0.3s, border-color 0.3s',
+      }}>
+        <span style={{ color: countdown <= 1 ? '#ef4444' : '#f59e0b', fontWeight: 800, fontSize: '1.1rem', fontFamily: "'Inter', sans-serif", fontVariantNumeric: 'tabular-nums' }}>
+          {Math.max(0, countdown)}
+        </span>
+      </div>
     </div>
   )
 }

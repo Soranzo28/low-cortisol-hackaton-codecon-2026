@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from 'react'
+import { useRef, useEffect, useState, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth, useUser } from '@clerk/clerk-react'
 import { useGestureDetector } from '@/hooks/useGestureDetector'
@@ -41,16 +41,42 @@ export function useRoomController() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const remoteVideoRef = useRef<HTMLVideoElement>(null)
 
+  // ── Event state ─────────────────────────────────────────────────────────────
+  const [detectionMode, setDetectionMode] = useState<'normal' | 'event'>('normal')
+  const [eventPanelVisible, setEventPanelVisible] = useState(false)
+  const [eventCountdown, setEventCountdown] = useState(0)
+  const [localGlowActive, setLocalGlowActive] = useState(false)
+  const [localGlowFading, setLocalGlowFading] = useState(false)
+  const [opponentGlowActive, setOpponentGlowActive] = useState(false)
+  const [opponentGlowFading, setOpponentGlowFading] = useState(false)
+
+  const activeEventIdRef = useRef<string | null>(null)
+  const sendMessageRef = useRef<((msg: object) => void) | null>(null)
+
+  const onEventComplete = useCallback(() => {
+    const eventId = activeEventIdRef.current
+    if (!eventId) return
+    sendMessageRef.current?.({ type: 'event_complete', event_id: eventId })
+    activeEventIdRef.current = null
+    setDetectionMode('normal')
+    setEventPanelVisible(false)
+  }, [])
+
+  // ── Gesture detector (mode-aware) ────────────────────────────────────────────
   const isTrain = new URLSearchParams(window.location.search).get('mode') === 'train'
-  const roomWsUrl = isTrain ? '' : `${WS_PROTO}://${SERVER}/room/${roomId}`
-  const { count, status: gestureStatus } = useGestureDetector(videoRef, canvasRef, isTrain)
+  const { count, status: gestureStatus } = useGestureDetector(videoRef, canvasRef, isTrain, detectionMode, onEventComplete)
 
   const countRef = useRef(0)
   countRef.current = count
   const baseCountRef = useRef(0)
   const gameStartedRef = useRef(false)
 
-  const { status: mpStatus, opponentCount, countdown, remaining, gameOver, latencyMs, opponentReconnecting } = useMultiplayer({
+  const roomWsUrl = isTrain ? '' : `${WS_PROTO}://${SERVER}/room/${roomId}`
+  const {
+    status: mpStatus, opponentCount, countdown, remaining, gameOver,
+    latencyMs, opponentReconnecting,
+    activeEvent, eventWinner, eventExpired, sendMessage,
+  } = useMultiplayer({
     roomWsUrl,
     localCount: gameStartedRef.current ? Math.max(0, count - baseCountRef.current) : 0,
     localVideoRef: videoRef,
@@ -58,6 +84,53 @@ export function useRoomController() {
     getToken,
   })
 
+  // Keep sendMessageRef fresh
+  sendMessageRef.current = sendMessage
+
+  // ── Event: activate ──────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!activeEvent) return
+    activeEventIdRef.current = activeEvent.eventId
+    setDetectionMode('event')
+    setEventPanelVisible(true)
+    setEventCountdown(activeEvent.duration)
+  }, [activeEvent])
+
+  // Countdown tick
+  useEffect(() => {
+    if (!eventPanelVisible || eventCountdown <= 0) return
+    const t = setTimeout(() => setEventCountdown((c) => c - 1), 1000)
+    return () => clearTimeout(t)
+  }, [eventPanelVisible, eventCountdown])
+
+  // ── Event: winner ────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!eventWinner) return
+    setDetectionMode('normal')
+    setEventPanelVisible(false)
+
+    const isMe = eventWinner.winnerId === user?.id
+    if (isMe) {
+      setLocalGlowActive(true); setLocalGlowFading(false)
+      const t1 = setTimeout(() => setLocalGlowFading(true), 4500)
+      const t2 = setTimeout(() => { setLocalGlowActive(false); setLocalGlowFading(false) }, 5000)
+      return () => { clearTimeout(t1); clearTimeout(t2) }
+    } else {
+      setOpponentGlowActive(true); setOpponentGlowFading(false)
+      const t1 = setTimeout(() => setOpponentGlowFading(true), 4500)
+      const t2 = setTimeout(() => { setOpponentGlowActive(false); setOpponentGlowFading(false) }, 5000)
+      return () => { clearTimeout(t1); clearTimeout(t2) }
+    }
+  }, [eventWinner, user?.id])
+
+  // ── Event: expired ───────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!eventExpired) return
+    setDetectionMode('normal')
+    setEventPanelVisible(false)
+  }, [eventExpired])
+
+  // ── Game start/end tracking ──────────────────────────────────────────────────
   useEffect(() => {
     if ((remaining !== null || isTrain) && !gameStartedRef.current) {
       gameStartedRef.current = true
@@ -91,5 +164,12 @@ export function useRoomController() {
     gameCount, gestureStatus, mpStatus, opponentCount,
     countdown, remaining, gameOver, latencyMs, opponentReconnecting, navigate,
     isTrain, user, myNick,
+    // Event system
+    eventPanelVisible,
+    eventCountdown,
+    localGlowActive,
+    localGlowFading,
+    opponentGlowActive,
+    opponentGlowFading,
   }
 }

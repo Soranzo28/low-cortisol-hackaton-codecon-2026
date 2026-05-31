@@ -163,6 +163,15 @@ async def room_endpoint(ws: WebSocket, room_id: str):
                 await game.relay_to_opponent(room_id, ws, {"type": "opponent_count", "value": msg.get("value", 0)})
             elif t == "reset":
                 await game.relay_to_opponent(room_id, ws, {"type": "opponent_reset"})
+            elif t == "event_complete":
+                event_id = msg.get("event_id", "")
+                q = game.room_event_trigger.get(room_id)
+                uid = game.room_ws_to_uid.get(room_id, {}).get(id(ws))
+                if q and uid and event_id:
+                    try:
+                        q.put_nowait((uid, event_id))
+                    except Exception:
+                        pass  # second player responded after winner already determined
             elif t == "identify":
                 pass  # consumed on reconnect before loop; ignore if it arrives here
 
@@ -199,6 +208,9 @@ async def room_endpoint(ws: WebSocket, room_id: str):
             game.room_state.pop(rid, None)
             game.room_remaining.pop(rid, None)
             game.room_ws_to_uid.pop(rid, None)
+            game.room_event_tasks.pop(rid, None)
+            game.room_event_bonus.pop(rid, None)
+            game.room_event_trigger.pop(rid, None)
             log.info("Room %s destroyed.", rid[:16])
         game._cleanup_tasks.pop(rid, None)
 

@@ -192,6 +192,13 @@ http://localhost:8765
 ### Multiplayer Com Evento
 <img src=".github/multiplayer_com_evento.gif" width="100%" alt="Multiplayer Com Evento" />
 
+### Autenticação com Clerk
+<img src=".github/auth.gif" width="100%" alt="Autenticação" />
+
+
+### Sobre (+ Minigames Escondidos)
+<img src=".github/sobre_detalhado.gif" width="100%" alt="Sobre" />
+
 ---
 
 ## Diagramas de Eng. de Software ☝️🤓 (para agradar nosso professor) 

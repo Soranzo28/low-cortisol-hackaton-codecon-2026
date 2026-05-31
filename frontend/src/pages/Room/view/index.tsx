@@ -193,7 +193,7 @@ function EventPanel({ visible, countdown, winnerName }: { visible: boolean; coun
       width: '78%',
       zIndex: 20,
       transform: visible ? 'translateX(0)' : 'translateX(110%)',
-      transition: 'transform 0.45s cubic-bezier(0.16, 1, 0.3, 1)',
+      transition: 'transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), background 0.4s ease, border-color 0.4s ease',
       background: winnerName ? 'rgba(0,20,10,0.94)' : 'rgba(10,10,20,0.92)',
       backdropFilter: 'blur(12px)',
       border: `1px solid ${winnerName ? 'rgba(0,255,136,0.25)' : 'rgba(255,255,255,0.1)'}`,
@@ -206,7 +206,6 @@ function EventPanel({ visible, countdown, winnerName }: { visible: boolean; coun
       padding: '1.25rem 1.5rem',
       gap: '0.85rem',
       pointerEvents: 'none',
-      transition: 'transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), background 0.4s ease, border-color 0.4s ease',
     }}>
       {winnerName ? (
         <>

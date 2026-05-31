@@ -38,3 +38,5 @@ server/key.pem
 certs/
 *.crt
 *.key
+
+.env

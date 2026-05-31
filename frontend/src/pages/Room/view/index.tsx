@@ -15,7 +15,7 @@ export function RoomView(props: RoomViewProps) {
     mpStatus, opponentCount, countdown,
     remaining, gameOver, latencyMs, opponentReconnecting, navigate,
     isTrain, user, myNick,
-    eventPanelVisible, eventCountdown, eventWinnerName, eventTitle, eventInstruction,
+    eventPanelVisible, eventCountdown, eventWinnerName, eventTitle, eventInstruction, eventGif,
     localGlowActive, localGlowFading,
     opponentGlowActive, opponentGlowFading,
     trainSelectedEvent, selectTrainEvent,
@@ -124,7 +124,7 @@ export function RoomView(props: RoomViewProps) {
                   transition: 'opacity 0.5s ease',
                 }} />
               )}
-              <EventPanel visible={eventPanelVisible} countdown={eventCountdown} winnerName={eventWinnerName} title={eventTitle} instruction={eventInstruction} />
+              <EventPanel visible={eventPanelVisible} countdown={eventCountdown} winnerName={eventWinnerName} title={eventTitle} instruction={eventInstruction} gif={eventGif} />
             </div>
             <PlayerBelowInfo name={matchCtx.oppNick} rankingScore={matchCtx.oppScore} avatarUrl={matchCtx.oppImageUrl ?? undefined} />
           </div>
@@ -238,7 +238,7 @@ function TrainEventSelector({ selected, onSelect }: { selected: string | null; o
   )
 }
 
-function EventPanel({ visible, countdown, winnerName, title, instruction }: { visible: boolean; countdown: number; winnerName: string | null; title: string; instruction: string }) {
+function EventPanel({ visible, countdown, winnerName, title, instruction, gif }: { visible: boolean; countdown: number; winnerName: string | null; title: string; instruction: string; gif: string }) {
   return (
     <div style={{
       position: 'absolute',
@@ -283,6 +283,11 @@ function EventPanel({ visible, countdown, winnerName, title, instruction }: { vi
           <p style={{ color: 'rgba(255,255,255,0.75)', fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: '0.78rem', textAlign: 'center', lineHeight: 1.5, margin: 0 }}>
             {instruction}
           </p>
+          <img
+            src={gif}
+            alt="event"
+            style={{ width: '80%', borderRadius: '0.5rem', objectFit: 'cover', flexShrink: 0 }}
+          />
           <div style={{
             width: 44, height: 44, borderRadius: '50%',
             background: countdown <= 2 ? 'rgba(239,68,68,0.2)' : 'rgba(245,158,11,0.15)',

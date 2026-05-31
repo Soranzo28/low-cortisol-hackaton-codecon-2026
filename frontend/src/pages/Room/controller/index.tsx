@@ -1,6 +1,8 @@
 import { useRef, useEffect, useState, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth, useUser } from '@clerk/clerk-react'
+import absoluteCinemaGif from '@/assets/absolute_cinema.gif'
+import dogPidaoGif from '@/assets/dog_pidao.gif'
 import { useGestureDetector } from '@/hooks/useGestureDetector'
 import { useMultiplayer } from '@/hooks/useMultiplayer'
 import { ROUTES } from '@/routes'
@@ -189,14 +191,16 @@ export function useRoomController() {
 
   const gameCount = (gameStartedRef.current ? Math.max(0, count - baseCountRef.current) : 0) + eventBonus
 
-  const EVENT_LABELS: Record<string, { title: string; instruction: string }> = {
+  const EVENT_LABELS: Record<string, { title: string; instruction: string; gif: string }> = {
     absolute_cinema: {
       title: 'Absolute Cinema!',
       instruction: 'Mostre as duas palmas abertas pra câmera por 1 segundo!',
+      gif: absoluteCinemaGif,
     },
     nerd_up: {
       title: 'Nerd Up!',
       instruction: 'Levante só o dedo indicador de uma das mãos por 1 segundo!',
+      gif: dogPidaoGif,
     },
   }
   const eventLabel = EVENT_LABELS[activeEventId ?? ''] ?? EVENT_LABELS['absolute_cinema']
@@ -229,6 +233,7 @@ export function useRoomController() {
     eventWinnerName,
     eventTitle: eventLabel.title,
     eventInstruction: eventLabel.instruction,
+    eventGif: eventLabel.gif,
     localGlowActive,
     localGlowFading,
     opponentGlowActive,

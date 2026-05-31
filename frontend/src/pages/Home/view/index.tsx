@@ -187,42 +187,42 @@ function RankingPanel({ ranking, rankingLoading, fetchRanking, meData }: {
   meData: MeData | null
 }) {
   return (
-    <div className="w-full order-2 lg:order-1">
-      <div className="bg-neutral-900/60 border border-neutral-800 rounded-3xl p-6 backdrop-blur-sm">
+    <div className="w-full order-2 lg:order-1 flex flex-col items-center">
+      <div className="w-full max-w-md flex flex-col gap-3">
         {/* Ranking header */}
-        <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center justify-between mb-4 px-2">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-indigo-500/15 border border-indigo-500/20 flex items-center justify-center">
-              <span className="text-lg">🏆</span>
+            <div className="w-12 h-12 rounded-2xl bg-neutral-900 border border-neutral-800 flex items-center justify-center shadow-sm">
+              <span className="text-2xl">🏆</span>
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-white tracking-tight">Ranking</h2>
-              <p className="text-xs text-neutral-500">Top 10 jogadores</p>
+              <h2 className="text-xl font-semibold text-white tracking-tight">Ranking</h2>
+              <p className="text-xs text-neutral-500 uppercase tracking-wider font-medium mt-0.5">Top 10 jogadores</p>
             </div>
           </div>
           <button
             onClick={fetchRanking}
-            className="text-neutral-600 hover:text-neutral-400 transition-colors text-xs px-3 py-1.5 rounded-lg border border-neutral-800 hover:border-neutral-700"
+            className="text-neutral-400 hover:text-white transition-colors text-xs font-medium px-4 h-10 rounded-xl bg-neutral-900/50 border border-neutral-800 hover:bg-neutral-800 flex items-center justify-center"
             title="Atualizar ranking"
           >
-            ↻ Atualizar
+            Atualizar
           </button>
         </div>
 
         {/* Ranking table */}
         {rankingLoading ? (
-          <div className="flex items-center justify-center py-12">
+          <div className="flex items-center justify-center py-12 h-16 md:h-14 bg-neutral-900/50 border border-neutral-800 rounded-2xl">
             <div className="w-6 h-6 border-2 border-neutral-700 border-t-white rounded-full animate-spin" />
           </div>
         ) : ranking.length === 0 ? (
-          <div className="py-12 text-center">
+          <div className="py-12 text-center bg-neutral-900/50 border border-neutral-800 rounded-2xl">
             <p className="text-neutral-500 text-sm">Nenhuma partida registrada ainda.</p>
             <p className="text-neutral-600 text-xs mt-1">Seja o primeiro a jogar!</p>
           </div>
         ) : (
-          <div className="space-y-1.5">
+          <div className="flex flex-col gap-3">
             {/* Table header */}
-            <div className="grid grid-cols-[2.5rem_1fr_4.5rem_3.5rem_4rem] gap-2 px-3 py-2 text-xs font-medium text-neutral-500 uppercase tracking-wider">
+            <div className="grid grid-cols-[2.5rem_1fr_4.5rem_3.5rem_4rem] gap-2 px-4 text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-[-0.25rem] ml-1">
               <span>#</span>
               <span>Jogador</span>
               <span className="text-right">Pontos</span>
@@ -244,17 +244,17 @@ function RankingPanel({ ranking, rankingLoading, fetchRanking, meData }: {
                 <div
                   key={entry.nick}
                   className={`
-                    grid grid-cols-[2.5rem_1fr_4.5rem_3.5rem_4rem] gap-2 items-center px-3 py-2.5 rounded-xl transition-colors
+                    grid grid-cols-[2.5rem_1fr_4.5rem_3.5rem_4rem] gap-2 items-center px-4 h-16 md:h-14 rounded-2xl transition-all
                     ${isMe
-                      ? 'bg-indigo-500/10 border border-indigo-500/20'
+                      ? 'bg-indigo-500/15 border border-indigo-500/30 shadow-[0_0_20px_-5px_rgba(99,102,241,0.2)] scale-[1.02] z-10 relative'
                       : i < 3
-                        ? `border ${positionStyles[i]}`
-                        : 'border border-transparent hover:bg-neutral-800/50'
+                        ? `border ${positionStyles[i]} hover:bg-neutral-800/50`
+                        : 'bg-neutral-900/50 border border-neutral-800 text-neutral-300 hover:bg-neutral-800 hover:text-white'
                     }
                   `}
                 >
                   {/* Position */}
-                  <span className="text-sm font-semibold">
+                  <span className="text-base font-semibold">
                     {i < 3 ? medalEmojis[i] : (
                       <span className="text-neutral-500">{i + 1}</span>
                     )}
@@ -263,7 +263,7 @@ function RankingPanel({ ranking, rankingLoading, fetchRanking, meData }: {
                   {/* Nick */}
                   <span className={`text-sm font-medium truncate ${isMe ? 'text-indigo-300' : 'text-neutral-200'}`}>
                     {entry.nick}
-                    {isMe && <span className="ml-1.5 text-[10px] text-indigo-400/70 font-normal">(você)</span>}
+                    {isMe && <span className="ml-2 text-[9px] text-indigo-400/80 font-semibold uppercase tracking-wider bg-indigo-500/10 px-1.5 py-0.5 rounded border border-indigo-500/20">(você)</span>}
                   </span>
 
                   {/* Score */}
@@ -272,12 +272,12 @@ function RankingPanel({ ranking, rankingLoading, fetchRanking, meData }: {
                   </span>
 
                   {/* Wins */}
-                  <span className="text-sm text-right tabular-nums text-emerald-400">
+                  <span className="text-sm text-right tabular-nums text-emerald-400 font-medium">
                     {entry.wins}
                   </span>
 
                   {/* Matches */}
-                  <span className="text-sm text-right tabular-nums text-neutral-500">
+                  <span className="text-sm text-right tabular-nums text-neutral-500 font-medium">
                     {entry.matches_played}
                   </span>
                 </div>

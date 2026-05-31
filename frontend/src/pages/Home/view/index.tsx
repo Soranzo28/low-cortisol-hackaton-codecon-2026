@@ -225,11 +225,11 @@ function RankingPanel({ ranking, rankingLoading, fetchRanking, meData }: {
         ) : (
           <div className="flex flex-col gap-3">
             {/* Table header */}
-            <div className="grid grid-cols-[2rem_1fr_6rem_4.5rem] gap-4 md:gap-5 px-8 md:px-10 text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-[-0.25rem]">
-              <span>#</span>
-              <span>Nome</span>
-              <span className="text-right">Auras Farmadas</span>
-              <span className="text-right">W / L</span>
+            <div className="flex items-center gap-3 px-6 text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-[-0.25rem]">
+              <span className="w-7 shrink-0">#</span>
+              <span className="flex-1 min-w-0">Nome</span>
+              <span className="w-24 text-right shrink-0">Auras Farmadas</span>
+              <span className="w-20 text-right shrink-0">W / L</span>
             </div>
 
             {/* Ranking rows */}
@@ -241,7 +241,7 @@ function RankingPanel({ ranking, rankingLoading, fetchRanking, meData }: {
                   <div
                     key={entry.nick}
                     className={`
-                      grid grid-cols-[2rem_1fr_6rem_4.5rem] gap-4 md:gap-5 items-center px-8 md:px-10 h-[4.25rem] min-h-[4.25rem] rounded-2xl transition-all
+                      flex items-center gap-3 px-6 h-[4.25rem] min-h-[4.25rem] rounded-2xl transition-all
                       ${isMe
                         ? 'bg-neutral-800/80 border border-neutral-600 text-white shadow-lg z-10 relative'
                         : 'bg-neutral-900/50 border border-neutral-800 text-neutral-300 hover:bg-neutral-800 hover:text-white'
@@ -249,23 +249,23 @@ function RankingPanel({ ranking, rankingLoading, fetchRanking, meData }: {
                     `}
                   >
                     {/* Position */}
-                    <span className="text-base font-semibold text-neutral-500">
+                    <span className="w-7 shrink-0 text-base font-semibold text-neutral-500">
                       {i + 1}
                     </span>
 
                     {/* Nick */}
-                    <span className={`text-sm font-medium truncate ${isMe ? 'text-white' : 'text-neutral-200'}`}>
+                    <span className={`flex-1 min-w-0 text-sm font-medium truncate ${isMe ? 'text-white' : 'text-neutral-200'}`}>
                       {entry.nick}
                       {isMe && <span className="ml-2 text-[9px] text-neutral-400 font-semibold uppercase tracking-wider bg-neutral-800 px-1.5 py-0.5 rounded border border-neutral-700">(você)</span>}
                     </span>
 
                     {/* Score */}
-                    <span className="text-sm text-right tabular-nums font-semibold text-white">
+                    <span className="w-24 text-sm text-right tabular-nums font-semibold text-white shrink-0">
                       {entry.total_score.toLocaleString()}
                     </span>
 
                     {/* W / L */}
-                    <span className="text-sm text-right tabular-nums font-semibold whitespace-nowrap">
+                    <span className="w-20 text-sm text-right tabular-nums font-semibold whitespace-nowrap shrink-0">
                       <span className="text-emerald-400">{entry.wins}W</span>
                       <span className="text-neutral-600 font-normal mx-1">/</span>
                       <span className="text-red-400">{entry.matches_played - entry.wins}L</span>

@@ -6,4 +6,5 @@ export interface MatchContext {
   myScore: number
   oppScore: number
   oppNick: string
+  oppImageUrl?: string | null
 }

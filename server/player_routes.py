@@ -15,6 +15,10 @@ class NickRequest(BaseModel):
     nick: str
 
 
+class ProfileImageRequest(BaseModel):
+    image_url: str
+
+
 @router.get("/health", tags=["Monitoramento"])
 async def health():
     import game
@@ -48,6 +52,19 @@ async def nick_endpoint(body: NickRequest, authorization: Optional[str] = Header
         return await db.create_or_update_nick(clerk_user_id, nick)
     except ValueError:
         raise HTTPException(409, "Nick already taken")
+
+
+@router.post("/profile-image")
+async def profile_image_endpoint(body: ProfileImageRequest, authorization: Optional[str] = Header(default=None)):
+    token = require_auth(authorization)
+    try:
+        clerk_user_id = await verify_clerk_token(token)
+    except ValueError as e:
+        raise HTTPException(401, str(e))
+    if not body.image_url.startswith("https://"):
+        raise HTTPException(400, "Invalid image URL")
+    await db.update_profile_image_url(clerk_user_id, body.image_url)
+    return {"ok": True}
 
 
 @router.get("/ranking")

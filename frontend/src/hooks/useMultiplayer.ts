@@ -14,6 +14,16 @@ export interface GameOverData {
   winner: 'you' | 'opponent' | 'draw'
 }
 
+export interface ActiveEventData {
+  eventId: string
+  duration: number
+}
+
+export interface EventWinnerData {
+  winnerId: string
+  bonus: number
+}
+
 interface UseMultiplayerOptions {
   /** Full WS URL of the room, e.g. wss://192.168.3.10:8765/room/<id> */
   roomWsUrl: string
@@ -31,6 +41,10 @@ interface UseMultiplayerReturn {
   gameOver: GameOverData | null
   latencyMs: number | null
   opponentReconnecting: boolean
+  activeEvent: ActiveEventData | null
+  eventWinner: EventWinnerData | null
+  eventExpired: boolean
+  sendMessage: (msg: object) => void
 }
 
 const ICE_SERVERS = [
@@ -52,6 +66,9 @@ export function useMultiplayer({
   const [gameOver, setGameOver] = useState<GameOverData | null>(null)
   const [latencyMs, setLatencyMs] = useState<number | null>(null)
   const [opponentReconnecting, setOpponentReconnecting] = useState(false)
+  const [activeEvent, setActiveEvent] = useState<ActiveEventData | null>(null)
+  const [eventWinner, setEventWinner] = useState<EventWinnerData | null>(null)
+  const [eventExpired, setEventExpired] = useState(false)
 
   const wsRef = useRef<WebSocket | null>(null)
   const pcRef = useRef<RTCPeerConnection | null>(null)
@@ -224,6 +241,20 @@ export function useMultiplayer({
             setStatus('disconnected')
             setOpponentCount(0)
             break
+
+          case 'event_start':
+            setActiveEvent({ eventId: msg.event_id as string, duration: msg.duration as number })
+            break
+
+          case 'event_winner':
+            setEventWinner({ winnerId: msg.winner_id as string, bonus: msg.bonus as number })
+            setActiveEvent(null)
+            break
+
+          case 'event_expired':
+            setEventExpired(true)
+            setActiveEvent(null)
+            break
         }
       }
 
@@ -277,5 +308,6 @@ export function useMultiplayer({
     send({ type: 'count', value: localCount })
   }, [localCount, status, remaining, gameOver, send])
 
-  return { status, opponentCount, countdown, remaining, gameOver, latencyMs, opponentReconnecting }
+  return { status, opponentCount, countdown, remaining, gameOver, latencyMs, opponentReconnecting,
+           activeEvent, eventWinner, eventExpired, sendMessage: send }
 }

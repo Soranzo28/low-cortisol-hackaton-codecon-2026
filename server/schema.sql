@@ -7,6 +7,8 @@ CREATE TABLE IF NOT EXISTS players (
   created_at    TIMESTAMP DEFAULT NOW()
 );
 
+ALTER TABLE players ADD COLUMN IF NOT EXISTS profile_image_url TEXT;
+
 CREATE TABLE IF NOT EXISTS matches (
   id        SERIAL PRIMARY KEY,
   player_a  TEXT REFERENCES players(clerk_user_id),

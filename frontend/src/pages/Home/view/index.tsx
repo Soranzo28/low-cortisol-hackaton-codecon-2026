@@ -50,7 +50,7 @@ export function HomeView(props: HomeViewProps) {
 
       {/* User header (top-right) */}
       {isSignedIn && meData?.nick && (
-        <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
+        <div className="absolute top-4 right-4 z-30 flex items-center gap-2">
           {user?.imageUrl && (
             <img
               src={user.imageUrl}
@@ -204,7 +204,7 @@ function RankingPanel({ ranking, rankingLoading, fetchRanking, meData }: {
           </div>
           <button
             onClick={fetchRanking}
-            className="text-neutral-400 hover:text-white transition-colors text-xs font-medium px-4 h-10 rounded-xl bg-neutral-900/50 border border-neutral-800 hover:bg-neutral-800 flex items-center justify-center gap-2"
+            className="text-neutral-400 hover:text-white transition-colors text-xs font-medium px-6 h-10 rounded-xl bg-neutral-900/50 border border-neutral-800 hover:bg-neutral-800 flex items-center justify-center gap-2"
             title="Atualizar ranking"
           >
             <RefreshCw size={14} className={rankingLoading ? 'animate-spin' : ''} />
@@ -225,11 +225,12 @@ function RankingPanel({ ranking, rankingLoading, fetchRanking, meData }: {
         ) : (
           <div className="flex flex-col gap-3">
             {/* Table header */}
-            <div className="grid grid-cols-[2rem_1fr_6rem_4.5rem] gap-4 md:gap-5 px-6 md:px-8 text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-[-0.25rem]">
-              <span>#</span>
-              <span>Nome</span>
-              <span className="text-right">Auras Farmadas</span>
-              <span className="text-right">W / L</span>
+            <div className="flex items-center gap-4 px-6 text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-[-0.25rem]">
+              <span className="shrink-0 tabular-nums min-w-[1.25rem] text-right">#</span>
+              <span className="flex-1 min-w-0">Nome</span>
+              <span className="w-24 text-right shrink-0">Auras Farmadas</span>
+              <span className="w-24 text-center shrink-0">W / L</span>
+              <span className="w-8 shrink-0"></span>
             </div>
 
             {/* Ranking rows */}
@@ -241,7 +242,7 @@ function RankingPanel({ ranking, rankingLoading, fetchRanking, meData }: {
                   <div
                     key={entry.nick}
                     className={`
-                      grid grid-cols-[2rem_1fr_6rem_4.5rem] gap-4 md:gap-5 items-center px-6 md:px-8 h-[4.25rem] min-h-[4.25rem] rounded-2xl transition-all
+                      flex items-center gap-4 px-6 h-[4.25rem] min-h-[4.25rem] rounded-2xl transition-all
                       ${isMe
                         ? 'bg-neutral-800/80 border border-neutral-600 text-white shadow-lg z-10 relative'
                         : 'bg-neutral-900/50 border border-neutral-800 text-neutral-300 hover:bg-neutral-800 hover:text-white'
@@ -249,27 +250,30 @@ function RankingPanel({ ranking, rankingLoading, fetchRanking, meData }: {
                     `}
                   >
                     {/* Position */}
-                    <span className="text-base font-semibold text-neutral-500">
+                    <span className="shrink-0 tabular-nums text-base font-semibold text-neutral-500 min-w-[1.25rem] text-right">
                       {i + 1}
                     </span>
 
                     {/* Nick */}
-                    <span className={`text-sm font-medium truncate ${isMe ? 'text-white' : 'text-neutral-200'}`}>
+                    <span className={`flex-1 min-w-0 text-sm font-medium truncate ${isMe ? 'text-white' : 'text-neutral-200'}`}>
                       {entry.nick}
                       {isMe && <span className="ml-2 text-[9px] text-neutral-400 font-semibold uppercase tracking-wider bg-neutral-800 px-1.5 py-0.5 rounded border border-neutral-700">(você)</span>}
                     </span>
 
                     {/* Score */}
-                    <span className="text-sm text-right tabular-nums font-semibold text-white">
+                    <span className="w-24 text-sm text-right tabular-nums font-semibold text-white shrink-0">
                       {entry.total_score.toLocaleString()}
                     </span>
 
                     {/* W / L */}
-                    <span className="text-sm text-right tabular-nums font-semibold whitespace-nowrap">
+                    <span className="w-24 text-sm text-center tabular-nums font-semibold whitespace-nowrap shrink-0">
                       <span className="text-emerald-400">{entry.wins}W</span>
                       <span className="text-neutral-600 font-normal mx-1">/</span>
                       <span className="text-red-400">{entry.matches_played - entry.wins}L</span>
                     </span>
+                    
+                    {/* Espaçador para empurrar W/L para a esquerda */}
+                    <span className="w-8 shrink-0"></span>
                   </div>
                 )
               })}

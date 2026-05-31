@@ -52,6 +52,14 @@ export function useHomeController() {
         if (!r.ok) return
         const data: MeData = await r.json()
         setMeData(data)
+        if (data.nick) sessionStorage.setItem('my_nick', data.nick)
+        if (data.nick && user?.imageUrl) {
+          fetch(`${HTTP_BASE}/profile-image`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ image_url: user.imageUrl }),
+          }).catch(() => {})
+        }
         if (!data.nick) {
           setNickInput(suggestNick(user?.firstName))
           setShowNickModal(true)
@@ -104,6 +112,7 @@ export function useHomeController() {
       if (!r.ok) throw new Error('failed')
       const data: MeData = await r.json()
       setMeData(data)
+      if (data.nick) sessionStorage.setItem('my_nick', data.nick)
       setShowNickModal(false)
       setNickInput('')
       fetchRanking() // refresh ranking after nick change

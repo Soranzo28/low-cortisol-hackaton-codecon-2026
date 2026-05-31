@@ -180,29 +180,29 @@ http://localhost:8765
 ## 🎥 Demonstração do Sistema
 
 ### Teste Local
-<img src=".github/teste_local.gif" width="600" alt="Teste Local" />
+<img src=".github/teste_local.gif" width="100%" alt="Teste Local" />
 
 <br>
 
 ### Multiplayer
-<img src=".github/multiplayer.gif" width="600" alt="Multiplayer" />
+<img src=".github/multiplayer.gif" width="100%" alt="Multiplayer" />
 
 <br>
 
 ### Multiplayer Com Evento
-<img src=".github/multiplayer_com_evento.gif" width="600" alt="Multiplayer Com Evento" />
+<img src=".github/multiplayer_com_evento.gif" width="100%" alt="Multiplayer Com Evento" />
 
 ---
 
 ## Diagramas de Eng. de Software ☝️🤓 (para agradar nosso professor) 
 
 #### Diagrama de Arquitetura
-<img src=".github/diagram1.png" width="900" alt="Diagrama de Arquitetura" />
+<img src=".github/diagram1.png" width="100%" alt="Diagrama de Arquitetura" />
 
 <br>
 
 #### Diagrama de Sequência
-<img src=".github/diagram2.png" width="900" alt="Diagrama de Sequência" />
+<img src=".github/diagram2.png" width="100%" alt="Diagrama de Sequência" />
 
 #### Diagrama de Casos de Uso
-<img src=".github/diagram3.png" width="900" alt="Diagrama de Casos de Uso" />
+<img src=".github/diagram3.png" width="100%" alt="Diagrama de Casos de Uso" />

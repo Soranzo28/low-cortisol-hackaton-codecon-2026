@@ -41,7 +41,7 @@ export function useRoomController() {
   const { getToken } = useAuth()
   const { user } = useUser()
   const myNick = sessionStorage.getItem('my_nick') ?? user?.firstName ?? 'Você'
-  const { scheduleAura, stopAura, fadeOutAura, playLow, stopAll: stopAllAudio, volume, volumeUp, volumeDown } = useGameAudio()
+  const { scheduleAura, fadeOutAura, playLow, stopAll: stopAllAudio, volume, volumeUp, volumeDown } = useGameAudio()
 
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)

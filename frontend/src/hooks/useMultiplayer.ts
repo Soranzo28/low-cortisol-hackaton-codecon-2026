@@ -117,7 +117,7 @@ export function useMultiplayer({
       // 1. grab camera
       try {
         stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
+          video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
           audio: false,
         })
         localStreamRef.current = stream
@@ -204,7 +204,7 @@ export function useMultiplayer({
 
           case 'game_start':
             setCountdown(null)
-            setRemaining(67)
+            setRemaining(msg.remaining as number ?? 42)
             break
 
           case 'tick':

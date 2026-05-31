@@ -77,19 +77,19 @@ export function RoomView(props: RoomViewProps) {
         className="relative z-10"
         style={{
           width: '100%',
-          maxWidth: 1280,
+          maxWidth: 1600,
           margin: '0 auto',
           flex: 1,
           display: 'flex',
           flexDirection: isMatched && !isMobile ? 'row' : 'column',
-          alignItems: isMatched && !isMobile ? 'flex-start' : 'center',
+          alignItems: 'center',
           justifyContent: 'center',
           gap: '3rem',
         }}
       >
         {/* Local player column */}
         <div style={isMatched && !isMobile
-          ? { flex: '1 1 0', minWidth: 0, maxWidth: 600, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }
+          ? { flex: '1 1 0', minWidth: 0, maxWidth: 750, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }
           : { width: '100%', maxWidth: 600, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }
         }>
           {/* Camera panel */}
@@ -121,7 +121,7 @@ export function RoomView(props: RoomViewProps) {
 
         {/* Opponent column */}
         {isMatched && (
-          <div style={{ flex: '1 1 0', minWidth: 0, maxWidth: 600, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
+          <div style={{ flex: '1 1 0', minWidth: 0, maxWidth: 750, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
             {/* Wrapper: overflow-hidden clips EventPanel slide animation */}
             <div style={{ position: 'relative', width: '100%', overflow: 'hidden', borderRadius: '1.5rem' }}>
               <OpponentPanel

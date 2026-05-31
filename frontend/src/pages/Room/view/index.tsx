@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React from 'react'
 import { StatusBadge } from '@/components/StatusBadge'
 import { OpponentPanel } from '@/components/OpponentPanel'
 import { ROUTES } from '@/routes'

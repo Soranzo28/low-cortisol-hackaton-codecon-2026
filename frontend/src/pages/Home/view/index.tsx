@@ -1,5 +1,6 @@
 import type { useHomeController } from '../controller'
 import type { NickModalProps, RankingEntry, MeData } from '../types'
+import { RefreshCw } from 'lucide-react'
 
 type HomeViewProps = ReturnType<typeof useHomeController>
 
@@ -202,9 +203,10 @@ function RankingPanel({ ranking, rankingLoading, fetchRanking, meData }: {
           </div>
           <button
             onClick={fetchRanking}
-            className="text-neutral-400 hover:text-white transition-colors text-xs font-medium px-4 h-10 rounded-xl bg-neutral-900/50 border border-neutral-800 hover:bg-neutral-800 flex items-center justify-center"
+            className="text-neutral-400 hover:text-white transition-colors text-xs font-medium px-4 h-10 rounded-xl bg-neutral-900/50 border border-neutral-800 hover:bg-neutral-800 flex items-center justify-center gap-2"
             title="Atualizar ranking"
           >
+            <RefreshCw size={14} className={rankingLoading ? 'animate-spin' : ''} />
             Atualizar
           </button>
         </div>
@@ -222,7 +224,7 @@ function RankingPanel({ ranking, rankingLoading, fetchRanking, meData }: {
         ) : (
           <div className="flex flex-col gap-3">
             {/* Table header */}
-            <div className="grid grid-cols-[2.5rem_1fr_6rem_4.5rem] gap-3 px-5 md:px-6 text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-[-0.25rem]">
+            <div className="grid grid-cols-[2rem_1fr_6rem_4.5rem] gap-4 md:gap-5 px-6 md:px-8 text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-[-0.25rem]">
               <span>#</span>
               <span>Nome</span>
               <span className="text-right">Auras Farmadas</span>
@@ -232,31 +234,21 @@ function RankingPanel({ ranking, rankingLoading, fetchRanking, meData }: {
             {/* Ranking rows */}
             {ranking.map((entry, i) => {
               const isMe = meData?.nick === entry.nick
-              const positionStyles = [
-                'bg-amber-500/10 border-amber-500/20 text-amber-400',   // 1st
-                'bg-neutral-400/10 border-neutral-400/20 text-neutral-300', // 2nd
-                'bg-orange-500/10 border-orange-500/20 text-orange-400', // 3rd
-              ]
-              const medalEmojis = ['🥇', '🥈', '🥉']
 
               return (
                 <div
                   key={entry.nick}
                   className={`
-                    grid grid-cols-[2.5rem_1fr_6rem_4.5rem] gap-3 items-center px-5 md:px-6 h-[4.25rem] rounded-2xl transition-all
+                    grid grid-cols-[2rem_1fr_6rem_4.5rem] gap-4 md:gap-5 items-center px-6 md:px-8 h-[4.25rem] rounded-2xl transition-all
                     ${isMe
                       ? 'bg-indigo-500/15 border border-indigo-500/30 shadow-[0_0_20px_-5px_rgba(99,102,241,0.2)] scale-[1.02] z-10 relative'
-                      : i < 3
-                        ? `border ${positionStyles[i]} hover:bg-neutral-800/50`
-                        : 'bg-neutral-900/50 border border-neutral-800 text-neutral-300 hover:bg-neutral-800 hover:text-white'
+                      : 'bg-neutral-900/50 border border-neutral-800 text-neutral-300 hover:bg-neutral-800 hover:text-white'
                     }
                   `}
                 >
                   {/* Position */}
-                  <span className="text-base font-semibold">
-                    {i < 3 ? medalEmojis[i] : (
-                      <span className="text-neutral-500">{i + 1}</span>
-                    )}
+                  <span className="text-base font-semibold text-neutral-500">
+                    {i + 1}
                   </span>
 
                   {/* Nick */}

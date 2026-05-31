@@ -21,7 +21,16 @@ export function useGameAudio() {
   const fadeRafRef = useRef<number | null>(null)
 
   // User-facing volume: 0 = muted, 1 = 100% (which maps to MAX_AUDIO_VOLUME real)
-  const [volume, setVolume] = useState(1)
+  const [volume, setVolumeState] = useState(1)
+  const volumeRef = useRef(1)
+
+  const setVolume = useCallback((updater: (v: number) => number) => {
+    setVolumeState(v => {
+      const next = updater(v)
+      volumeRef.current = next
+      return next
+    })
+  }, [])
 
   /** Convert user-facing volume (0–1) to real audio volume (0–MAX_AUDIO_VOLUME). */
   const toReal = (v: number) => v * MAX_AUDIO_VOLUME
@@ -31,7 +40,7 @@ export function useGameAudio() {
     if (!auraRef.current) {
       const audio = new Audio(auraTrack)
       audio.loop = true
-      audio.volume = toReal(1)
+      audio.volume = toReal(volumeRef.current)
       auraRef.current = audio
     }
     return auraRef.current
@@ -50,7 +59,7 @@ export function useGameAudio() {
   // Sync aura volume whenever user changes it (only while playing, not during fade)
   useEffect(() => {
     const audio = auraRef.current
-    if (audio && !audio.paused && !fadeRafRef.current) {
+    if (audio && !fadeRafRef.current) {
       audio.volume = toReal(volume)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -81,12 +90,10 @@ export function useGameAudio() {
     if (!audio.paused) return
 
     auraTimerRef.current = setTimeout(() => {
-      audio.volume = toReal(volume)
+      audio.volume = toReal(volumeRef.current)
       audio.currentTime = 0
       audio.play().catch(() => {})
     }, 2_000)
-  // volume is read at schedule-time via closure; we intentionally don't re-schedule on volume change
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [getAura])
 
   /** Stop aura immediately (no fade, for hard-stop / cleanup). */
@@ -103,9 +110,9 @@ export function useGameAudio() {
     if (audio && !audio.paused) {
       audio.pause()
       audio.currentTime = 0
-      audio.volume = toReal(volume)
+      audio.volume = toReal(volumeRef.current)
     }
-  }, [volume])
+  }, [])
 
   /** Fade out aura over ~2 seconds, then pause. */
   const fadeOutAura = useCallback(() => {
@@ -129,12 +136,12 @@ export function useGameAudio() {
       } else {
         audio.pause()
         audio.currentTime = 0
-        audio.volume = toReal(volume) // reset to user-set volume
+        audio.volume = toReal(volumeRef.current) // reset to user-set volume
         fadeRafRef.current = null
       }
     }
     fadeRafRef.current = requestAnimationFrame(tick)
-  }, [volume])
+  }, [])
 
   /** Play low.mp3 (victory) with a 2-second fade-in. */
   const playLow = useCallback(() => {

@@ -68,31 +68,78 @@ function isOpenPalmFacingCamera(hand: Landmark[]): boolean {
   return palmFacing && fingersOpen
 }
 
-// Hype Wave: one hand open (tip above PIP), other hand closed
-// Same landmark pairs as the Python script (tip vs PIP, not MCP)
-function isHandOpen(hand: Landmark[]): boolean {
-  return hand[8].y < hand[6].y &&   // index tip < index PIP
-         hand[12].y < hand[10].y && // middle
-         hand[16].y < hand[14].y && // ring
-         hand[20].y < hand[18].y    // pinky
+// Hype Wave: one hand near the face (covering mouth) + other hand open palm facing camera
+// Face hand: wrist (lm 0) in upper portion of frame (y < threshold; y=0 = top of frame)
+const FACE_Y_THRESHOLD = 0.55
+// Height separation: forward hand wrist must be this much lower than face hand wrist
+const HEIGHT_DIFF_MIN = 0.08
+
+function isFaceHand(hand: Landmark[]): boolean {
+  return hand[0].y < FACE_Y_THRESHOLD
 }
 
-function isHandClosed(hand: Landmark[]): boolean {
-  return !(hand[8].y < hand[6].y ||
-           hand[12].y < hand[10].y ||
-           hand[16].y < hand[14].y ||
-           hand[20].y < hand[18].y)
-}
+// Debug: hand connections for HandLandmarker (21 landmarks)
+const HAND_CONNECTIONS: [number, number][] = [
+  [0,1],[1,2],[2,3],[3,4],
+  [0,5],[5,6],[6,7],[7,8],
+  [0,9],[9,10],[10,11],[11,12],
+  [0,13],[13,14],[14,15],[15,16],
+  [0,17],[17,18],[18,19],[19,20],
+  [5,9],[9,13],[13,17],
+]
 
-// Checks if shake history for this hand slot exceeds the displacement threshold
-const SHAKE_FRAMES = 8
-const SHAKE_THRESHOLD = 0.05
+function drawHandDebug(
+  canvas: HTMLCanvasElement,
+  hands: Landmark[][],
+  t: CoverTransform,
+  faceIdx: number,
+  palmIdx: number,
+) {
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
+  if (canvas.width !== t.W) canvas.width = t.W
+  if (canvas.height !== t.H) canvas.height = t.H
+  ctx.clearRect(0, 0, t.W, t.H)
 
-function updateShakeHistory(hand: Landmark[], history: number[]): boolean {
-  history.push(hand[9].x)  // lm[9] = ring finger MCP, same as Python
-  if (history.length > SHAKE_FRAMES) history.shift()
-  if (history.length < SHAKE_FRAMES) return false
-  return Math.max(...history) - Math.min(...history) > SHAKE_THRESHOLD
+  // Draw face-level threshold line
+  const threshY = FACE_Y_THRESHOLD * t.H
+  ctx.save()
+  ctx.strokeStyle = 'rgba(250,204,21,0.5)'
+  ctx.lineWidth = 1.5
+  ctx.setLineDash([8, 6])
+  ctx.beginPath(); ctx.moveTo(0, threshY); ctx.lineTo(t.W, threshY); ctx.stroke()
+  ctx.setLineDash([])
+  ctx.fillStyle = 'rgba(250,204,21,0.6)'
+  ctx.font = 'bold 11px monospace'
+  ctx.fillText(`face y < ${FACE_Y_THRESHOLD}`, 8, threshY - 5)
+  ctx.restore()
+
+  hands.forEach((hand, hi) => {
+    const isFace = hi === faceIdx
+    const isPalm = hi === palmIdx
+    const baseColor = isFace ? '#facc15' : isPalm ? '#4ade80' : 'rgba(255,255,255,0.5)'
+
+    // Skeleton
+    ctx.strokeStyle = baseColor; ctx.lineWidth = 1.5
+    for (const [a, b] of HAND_CONNECTIONS) {
+      const pa = toScreen(hand[a].x, hand[a].y, t)
+      const pb = toScreen(hand[b].x, hand[b].y, t)
+      ctx.beginPath(); ctx.moveTo(pa.x, pa.y); ctx.lineTo(pb.x, pb.y); ctx.stroke()
+    }
+
+    // Landmarks
+    for (let i = 0; i < hand.length; i++) {
+      const { x, y } = toScreen(hand[i].x, hand[i].y, t)
+      ctx.fillStyle = i === 0 ? baseColor : 'rgba(255,255,255,0.8)'
+      ctx.beginPath(); ctx.arc(x, y, i === 0 ? 5 : 3, 0, Math.PI * 2); ctx.fill()
+    }
+
+    // Wrist y label for debugging
+    const wrist = toScreen(hand[0].x, hand[0].y, t)
+    ctx.font = 'bold 10px monospace'
+    ctx.fillStyle = baseColor
+    ctx.fillText(`y=${hand[0].y.toFixed(2)}`, wrist.x + 8, wrist.y - 5)
+  })
 }
 
 function drawThresholdLines(
@@ -192,14 +239,10 @@ export function useGestureDetector(
   const onEventCompleteRef = useRef(onEventComplete)
   onEventCompleteRef.current = onEventComplete
 
-  // Shake histories for hype_wave: separate per hand slot (index 0 and 1)
-  const shakeHistoriesRef = useRef<[number[], number[]]>([[], []])
-
   // Reset detection state when event mode starts
   useEffect(() => {
     if (mode === 'event') {
       eventHoldStartRef.current = 0
-      shakeHistoriesRef.current = [[], []]
     }
   }, [mode])
 
@@ -282,30 +325,42 @@ export function useGestureDetector(
         const handLandmarker = handLandmarkerRef.current
         if (handLandmarker) {
           const result = handLandmarker.detectForVideo(video, performance.now())
-          clearCanvas()
           const hands = result.landmarks
           let poseDetected = false
+          let debugFaceIdx = -1
+          let debugPalmIdx = -1
 
           if (eventIdRef.current === 'absolute_cinema') {
             poseDetected = hands.length >= 2 && hands.every(isOpenPalmFacingCamera)
 
           } else if (eventIdRef.current === 'hype_wave') {
+            // One hand near face (wrist y < threshold), other hand open palm facing camera,
+            // and forward hand must be meaningfully lower than face hand
             if (hands.length >= 2) {
-              // Update shake histories for each hand slot
-              for (let i = 0; i < 2; i++) {
-                updateShakeHistory(hands[i], shakeHistoriesRef.current[i])
-              }
-              // Check: hand[i] open+shaking, hand[j] closed
               for (let i = 0; i < 2 && !poseDetected; i++) {
                 const j = 1 - i
-                const hist = shakeHistoriesRef.current[i]
-                const isShaking = hist.length >= SHAKE_FRAMES &&
-                  Math.max(...hist) - Math.min(...hist) > SHAKE_THRESHOLD
-                if (isHandOpen(hands[i]) && isShaking && isHandClosed(hands[j])) {
+                const faceOk = isFaceHand(hands[i])
+                const palmOk = isOpenPalmFacingCamera(hands[j])
+                const heightOk = hands[j][0].y > hands[i][0].y + HEIGHT_DIFF_MIN
+                if (faceOk && palmOk && heightOk) {
                   poseDetected = true
+                  debugFaceIdx = i
+                  debugPalmIdx = j
+                } else if (faceOk) {
+                  debugFaceIdx = i
+                } else if (palmOk) {
+                  debugPalmIdx = j
                 }
               }
             }
+          }
+
+          // Draw debug overlay in training mode
+          if (drawOverlay && canvasRef.current && hands.length > 0) {
+            const t = computeTransform(video, canvasRef.current)
+            drawHandDebug(canvasRef.current, hands, t, debugFaceIdx, debugPalmIdx)
+          } else if (!drawOverlay) {
+            clearCanvas()
           }
 
           const now = Date.now()

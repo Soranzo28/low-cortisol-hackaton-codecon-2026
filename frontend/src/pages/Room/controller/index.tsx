@@ -196,7 +196,7 @@ export function useRoomController() {
     },
     hype_wave: {
       title: 'Hype Wave!',
-      instruction: 'Agite uma mão aberta e feche a outra em punho por 1 segundo!',
+      instruction: 'Cubra a boca com uma mão e aponte a palma aberta pra câmera com a outra por 1 segundo!',
     },
   }
   const eventLabel = EVENT_LABELS[activeEventId ?? ''] ?? EVENT_LABELS['absolute_cinema']

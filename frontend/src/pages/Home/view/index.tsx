@@ -204,7 +204,7 @@ function RankingPanel({ ranking, rankingLoading, fetchRanking, meData }: {
           </div>
           <button
             onClick={fetchRanking}
-            className="text-neutral-400 hover:text-white transition-colors text-xs font-medium px-4 h-10 rounded-xl bg-neutral-900/50 border border-neutral-800 hover:bg-neutral-800 flex items-center justify-center gap-2"
+            className="text-neutral-400 hover:text-white transition-colors text-xs font-medium px-6 h-10 rounded-xl bg-neutral-900/50 border border-neutral-800 hover:bg-neutral-800 flex items-center justify-center gap-2"
             title="Atualizar ranking"
           >
             <RefreshCw size={14} className={rankingLoading ? 'animate-spin' : ''} />
@@ -225,7 +225,7 @@ function RankingPanel({ ranking, rankingLoading, fetchRanking, meData }: {
         ) : (
           <div className="flex flex-col gap-3">
             {/* Table header */}
-            <div className="grid grid-cols-[2rem_1fr_6rem_4.5rem] gap-4 md:gap-5 px-6 md:px-8 text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-[-0.25rem]">
+            <div className="grid grid-cols-[2rem_1fr_6rem_4.5rem] gap-4 md:gap-5 px-8 md:px-10 text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-[-0.25rem]">
               <span>#</span>
               <span>Nome</span>
               <span className="text-right">Auras Farmadas</span>
@@ -241,7 +241,7 @@ function RankingPanel({ ranking, rankingLoading, fetchRanking, meData }: {
                   <div
                     key={entry.nick}
                     className={`
-                      grid grid-cols-[2rem_1fr_6rem_4.5rem] gap-4 md:gap-5 items-center px-6 md:px-8 h-[4.25rem] min-h-[4.25rem] rounded-2xl transition-all
+                      grid grid-cols-[2rem_1fr_6rem_4.5rem] gap-4 md:gap-5 items-center px-8 md:px-10 h-[4.25rem] min-h-[4.25rem] rounded-2xl transition-all
                       ${isMe
                         ? 'bg-neutral-800/80 border border-neutral-600 text-white shadow-lg z-10 relative'
                         : 'bg-neutral-900/50 border border-neutral-800 text-neutral-300 hover:bg-neutral-800 hover:text-white'

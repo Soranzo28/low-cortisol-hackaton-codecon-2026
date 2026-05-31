@@ -152,10 +152,11 @@ export function useRoomController() {
     if (isMe) setEventBonus(eventWinner.bonus)
     else setOpponentEventBonus(eventWinner.bonus)
 
-    // Show winner for 3s then slide out
+    // Show winner for 3s then slide out and clear event id (prevents stale gif on next event)
     const tHide = setTimeout(() => {
       setEventPanelVisible(false)
       setEventWinnerName(null)
+      setActiveEventId(null)
     }, 3000)
 
     if (isMe) {
@@ -176,6 +177,7 @@ export function useRoomController() {
     if (!eventExpired) return
     setDetectionMode('normal')
     setEventPanelVisible(false)
+    setActiveEventId(null)
   }, [eventExpired])
 
   // ── Game start/end tracking ──────────────────────────────────────────────────
@@ -233,7 +235,7 @@ export function useRoomController() {
     eventWinnerName,
     eventTitle: eventLabel.title,
     eventInstruction: eventLabel.instruction,
-    eventGif: eventLabel.gif,
+    eventGif: activeEventId ? eventLabel.gif : null,
     localGlowActive,
     localGlowFading,
     opponentGlowActive,

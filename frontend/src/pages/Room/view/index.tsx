@@ -238,7 +238,7 @@ function TrainEventSelector({ selected, onSelect }: { selected: string | null; o
   )
 }
 
-function EventPanel({ visible, countdown, winnerName, title, instruction, gif }: { visible: boolean; countdown: number; winnerName: string | null; title: string; instruction: string; gif: string }) {
+function EventPanel({ visible, countdown, winnerName, title, instruction, gif }: { visible: boolean; countdown: number; winnerName: string | null; title: string; instruction: string; gif: string | null }) {
   return (
     <div style={{
       position: 'absolute',
@@ -283,11 +283,13 @@ function EventPanel({ visible, countdown, winnerName, title, instruction, gif }:
           <p style={{ color: 'rgba(255,255,255,0.75)', fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: '0.78rem', textAlign: 'center', lineHeight: 1.5, margin: 0 }}>
             {instruction}
           </p>
-          <img
-            src={gif}
-            alt="event"
-            style={{ width: '80%', borderRadius: '0.5rem', objectFit: 'cover', flexShrink: 0 }}
-          />
+          {gif && (
+            <img
+              src={gif}
+              alt="event"
+              style={{ width: '80%', borderRadius: '0.5rem', objectFit: 'cover', flexShrink: 0 }}
+            />
+          )}
           <div style={{
             width: 44, height: 44, borderRadius: '50%',
             background: countdown <= 2 ? 'rgba(239,68,68,0.2)' : 'rgba(245,158,11,0.15)',

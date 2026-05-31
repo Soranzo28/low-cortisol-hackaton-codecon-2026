@@ -225,8 +225,8 @@ function RankingPanel({ ranking, rankingLoading, fetchRanking, meData }: {
         ) : (
           <div className="flex flex-col gap-3">
             {/* Table header */}
-            <div className="flex items-center gap-3 px-10 text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-[-0.25rem]">
-              <span className="w-7 shrink-0">#</span>
+            <div className="flex items-center gap-4 px-6 text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-[-0.25rem]">
+              <span className="shrink-0 tabular-nums">#</span>
               <span className="flex-1 min-w-0">Nome</span>
               <span className="w-24 text-right shrink-0">Auras Farmadas</span>
               <span className="w-20 text-right shrink-0">W / L</span>
@@ -241,7 +241,7 @@ function RankingPanel({ ranking, rankingLoading, fetchRanking, meData }: {
                   <div
                     key={entry.nick}
                     className={`
-                      flex items-center gap-3 px-10 h-[4.25rem] min-h-[4.25rem] rounded-2xl transition-all
+                      flex items-center gap-4 px-6 h-[4.25rem] min-h-[4.25rem] rounded-2xl transition-all
                       ${isMe
                         ? 'bg-neutral-800/80 border border-neutral-600 text-white shadow-lg z-10 relative'
                         : 'bg-neutral-900/50 border border-neutral-800 text-neutral-300 hover:bg-neutral-800 hover:text-white'
@@ -249,7 +249,7 @@ function RankingPanel({ ranking, rankingLoading, fetchRanking, meData }: {
                     `}
                   >
                     {/* Position */}
-                    <span className="w-7 shrink-0 text-base font-semibold text-neutral-500">
+                    <span className="shrink-0 tabular-nums text-base font-semibold text-neutral-500 min-w-[1.25rem] text-right">
                       {i + 1}
                     </span>
 

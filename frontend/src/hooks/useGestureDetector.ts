@@ -95,12 +95,6 @@ function isPalmOpen(hand: Landmark[]): boolean {
          hand[20].y < hand[18].y     // pinky  tip < PIP
 }
 
-function isSwishingVertically(hand: Landmark[], history: number[]): boolean {
-  history.push(hand[0].y)  // wrist Y
-  if (history.length > SWISH_FRAMES) history.shift()
-  if (history.length < SWISH_FRAMES) return false
-  return Math.max(...history) - Math.min(...history) > SWISH_THRESHOLD
-}
 
 // Debug: hand connections for HandLandmarker (21 landmarks)
 const HAND_CONNECTIONS: [number, number][] = [

@@ -73,10 +73,10 @@ export function RoomView(props: RoomViewProps) {
       </div>
 
       {/* Main Content Area */}
-      <div className={`relative z-10 w-full flex-1 max-w-7xl mx-auto flex ${isMatched && !isMobile ? 'flex-row items-start' : 'flex-col items-center'} justify-center gap-6 md:gap-12`}>
+      <div className={`relative z-10 w-full flex-1 max-w-7xl mx-auto flex ${isMatched && !isMobile ? 'flex-row items-center' : 'flex-col items-center'} justify-center gap-6 md:gap-12`}>
 
         {/* Local player column */}
-        <div className={`flex flex-col items-center w-full max-w-[600px] ${isMatched && !isMobile ? 'flex-1' : ''}`}>
+        <div className={`flex flex-col items-center ${isMatched && !isMobile ? 'flex-1 max-w-[600px]' : 'w-full max-w-[600px]'}`}>
           {/* Camera panel */}
           <div
             className="relative overflow-hidden rounded-3xl bg-neutral-900/60 border border-neutral-800 shadow-2xl backdrop-blur-sm aspect-square w-full"
@@ -111,7 +111,7 @@ export function RoomView(props: RoomViewProps) {
 
         {/* Opponent column */}
         {isMatched && (
-          <div className={`flex flex-col items-center w-full max-w-[600px] ${!isMobile ? 'flex-1' : ''}`}>
+          <div className="flex flex-col items-center flex-1 max-w-[600px]">
             {/* Camera + event overlay wrapper */}
             <div className="relative w-full aspect-square">
               <OpponentPanel

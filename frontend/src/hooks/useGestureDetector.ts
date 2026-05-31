@@ -86,13 +86,15 @@ function isRockHand(hand: Landmark[]): boolean {
   return indexUp && pinkyUp && middleDown && ringDown
 }
 
-// Thumbs Up: thumb tip above thumb MCP, all other fingers closed
+// Thumbs Up: thumb tip above its IP joint and above the index knuckle, fingers curled at PIP
 function isThumbsUp(hand: Landmark[]): boolean {
-  const thumbUp    = hand[4].y  < hand[2].y    // thumb tip above thumb MCP
-  const indexDown  = hand[8].y  >= hand[6].y   // index closed
-  const middleDown = hand[12].y >= hand[10].y  // middle closed
-  const ringDown   = hand[16].y >= hand[14].y  // ring closed
-  const pinkyDown  = hand[20].y >= hand[18].y  // pinky closed
+  // Thumb extending upward: tip above IP joint AND above the index MCP (knuckle line)
+  const thumbUp    = hand[4].y < hand[3].y && hand[4].y < hand[5].y
+  // Fingers curled: tips below PIP joints
+  const indexDown  = hand[8].y  >= hand[6].y
+  const middleDown = hand[12].y >= hand[10].y
+  const ringDown   = hand[16].y >= hand[14].y
+  const pinkyDown  = hand[20].y >= hand[18].y
   return thumbUp && indexDown && middleDown && ringDown && pinkyDown
 }
 

@@ -76,7 +76,7 @@ export function HomeView(props: HomeViewProps) {
 
       {/* Two-column layout */}
       <div className="relative z-10 min-h-screen flex items-center justify-center px-4 py-16">
-        <div className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-start">
+        <div className="w-full max-w-7xl grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-24 items-start">
 
           {/* RIGHT COLUMN — Ranking */}
           <RankingPanel
@@ -87,7 +87,7 @@ export function HomeView(props: HomeViewProps) {
           />
 
           {/* LEFT COLUMN — Brand + Menu / Actions */}
-          <div className="w-full order-1 flex flex-col items-center">
+          <div className="w-full order-1 flex flex-col items-center lg:items-center">
 
             {/* Brand */}
             <div className="flex flex-col items-center mb-10">
@@ -188,7 +188,7 @@ function RankingPanel({ ranking, rankingLoading, fetchRanking, meData }: {
   meData: MeData | null
 }) {
   return (
-    <div className="w-full order-2 flex flex-col items-center">
+    <div className="w-full order-2 flex flex-col items-center lg:items-center">
       <div className="w-full max-w-lg flex flex-col gap-3">
         {/* Ranking header */}
         <div className="flex items-center justify-between mb-4 px-2">
@@ -241,7 +241,7 @@ function RankingPanel({ ranking, rankingLoading, fetchRanking, meData }: {
                   className={`
                     grid grid-cols-[2rem_1fr_6rem_4.5rem] gap-4 md:gap-5 items-center px-6 md:px-8 h-[4.25rem] rounded-2xl transition-all
                     ${isMe
-                      ? 'bg-indigo-500/15 border border-indigo-500/30 shadow-[0_0_20px_-5px_rgba(99,102,241,0.2)] scale-[1.02] z-10 relative'
+                      ? 'bg-neutral-800/80 border border-neutral-700 text-white shadow-lg scale-[1.02] z-10 relative'
                       : 'bg-neutral-900/50 border border-neutral-800 text-neutral-300 hover:bg-neutral-800 hover:text-white'
                     }
                   `}
@@ -252,9 +252,9 @@ function RankingPanel({ ranking, rankingLoading, fetchRanking, meData }: {
                   </span>
 
                   {/* Nick */}
-                  <span className={`text-sm font-medium truncate ${isMe ? 'text-indigo-300' : 'text-neutral-200'}`}>
+                  <span className={`text-sm font-medium truncate ${isMe ? 'text-white' : 'text-neutral-200'}`}>
                     {entry.nick}
-                    {isMe && <span className="ml-2 text-[9px] text-indigo-400/80 font-semibold uppercase tracking-wider bg-indigo-500/10 px-1.5 py-0.5 rounded border border-indigo-500/20">(você)</span>}
+                    {isMe && <span className="ml-2 text-[9px] text-neutral-400 font-semibold uppercase tracking-wider bg-neutral-800 px-1.5 py-0.5 rounded border border-neutral-700">(você)</span>}
                   </span>
 
                   {/* Score */}

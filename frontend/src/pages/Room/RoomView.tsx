@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { StatusBadge } from '@/components/StatusBadge'
 import { OpponentPanel } from '@/components/OpponentPanel'
 import type { useRoomController } from './RoomController'
@@ -23,6 +23,7 @@ export function RoomView(props: RoomViewProps) {
     remaining,
     gameOver,
     latencyMs,
+    opponentReconnecting,
     navigate,
   } = props
 
@@ -106,8 +107,13 @@ export function RoomView(props: RoomViewProps) {
         <GameOverOverlay data={gameOver} onGoHome={() => navigate('/')} />
       )}
 
+      {/* ── Reconnecting banner (grace period) ───────────────────────────── */}
+      {opponentReconnecting && (
+        <ReconnectingBanner timeout={15} />
+      )}
+
       {/* ── Disconnected banner ───────────────────────────────────────────── */}
-      {mpStatus === 'disconnected' && gameOver === null && (
+      {mpStatus === 'disconnected' && gameOver === null && !opponentReconnecting && (
         <DisconnectedBanner onGoHome={() => navigate('/')} />
       )}
     </div>
@@ -242,6 +248,37 @@ function WaitingOverlay({ status }: { status: string }) {
       <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: '1.1rem', fontWeight: 600, fontFamily: "'Inter', sans-serif" }}>
         {status === 'connecting' ? 'Conectando à sala…' : 'Aguardando adversário entrar…'}
       </p>
+    </div>
+  )
+}
+
+function ReconnectingBanner({ timeout }: { timeout: number }) {
+  const [secs, setSecs] = useState(timeout)
+
+  useEffect(() => {
+    if (secs <= 0) return
+    const id = setInterval(() => setSecs(s => s - 1), 1000)
+    return () => clearInterval(id)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  return (
+    <div style={{
+      position: 'absolute', top: 0, left: 0, right: 0, zIndex: 40,
+      padding: '0.75rem 2rem',
+      background: 'rgba(234,179,8,0.85)', backdropFilter: 'blur(6px)',
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      fontFamily: "'Inter', sans-serif",
+    }}>
+      <span style={{ color: 'black', fontWeight: 600, fontSize: '0.95rem' }}>
+        ⏳ Adversário desconectou — aguardando reconexão…
+      </span>
+      <span style={{
+        color: 'black', fontWeight: 700, fontSize: '1rem',
+        background: 'rgba(0,0,0,0.12)', borderRadius: '9999px',
+        padding: '0.2rem 0.75rem', fontVariantNumeric: 'tabular-nums',
+      }}>
+        {secs}s
+      </span>
     </div>
   )
 }

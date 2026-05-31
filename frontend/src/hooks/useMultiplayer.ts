@@ -30,6 +30,7 @@ interface UseMultiplayerReturn {
   remaining: number | null
   gameOver: GameOverData | null
   latencyMs: number | null
+  opponentReconnecting: boolean
 }
 
 const ICE_SERVERS = [
@@ -50,6 +51,7 @@ export function useMultiplayer({
   const [remaining, setRemaining] = useState<number | null>(null)
   const [gameOver, setGameOver] = useState<GameOverData | null>(null)
   const [latencyMs, setLatencyMs] = useState<number | null>(null)
+  const [opponentReconnecting, setOpponentReconnecting] = useState(false)
 
   const wsRef = useRef<WebSocket | null>(null)
   const pcRef = useRef<RTCPeerConnection | null>(null)
@@ -204,7 +206,16 @@ export function useMultiplayer({
             setOpponentCount(0)
             break
 
+          case 'opponent_reconnecting':
+            setOpponentReconnecting(true)
+            break
+
+          case 'opponent_reconnected':
+            setOpponentReconnecting(false)
+            break
+
           case 'opponent_left':
+            setOpponentReconnecting(false)
             setStatus('disconnected')
             setOpponentCount(0)
             break
@@ -261,5 +272,5 @@ export function useMultiplayer({
     send({ type: 'count', value: localCount })
   }, [localCount, status, remaining, gameOver, send])
 
-  return { status, opponentCount, countdown, remaining, gameOver, latencyMs }
+  return { status, opponentCount, countdown, remaining, gameOver, latencyMs, opponentReconnecting }
 }

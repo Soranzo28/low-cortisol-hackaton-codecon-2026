@@ -75,6 +75,7 @@ async def match_timer(room_id: str) -> None:
 
         scores = room_scores.get(room_id, {})
         players = rooms.get(room_id, [])
+        room_state[room_id] = 'finished'
 
         if len(players) == 2:
             s0 = scores.get(id(players[0]), 0)
@@ -86,7 +87,6 @@ async def match_timer(room_id: str) -> None:
             )
             await ws_send(players[0], {"type": "game_over", "your_score": s0, "opponent_score": s1, "winner": w0})
             await ws_send(players[1], {"type": "game_over", "your_score": s1, "opponent_score": s0, "winner": w1})
-            room_state[room_id] = 'finished'
             log.info("Room %s — game over: %d vs %d", room_id[:16], s0, s1)
 
             pinfos = room_player_info.get(room_id, [])
@@ -98,6 +98,14 @@ async def match_timer(room_id: str) -> None:
                         await db.record_match(uid_a, uid_b, s0, s1)
                     except Exception as e:
                         log.warning("record_match failed: %s", e)
+
+        elif len(players) == 1:
+            # Opponent disconnected during grace period and timer ran out
+            stayer = players[0]
+            s_stayer = scores.get(id(stayer), 0)
+            s_opponent = next((v for k, v in scores.items() if k != id(stayer)), 0)
+            await ws_send(stayer, {"type": "game_over", "your_score": s_stayer, "opponent_score": s_opponent, "winner": "you"})
+            log.info("Room %s — game over (1 player): stayer=%d opponent=%d", room_id[:16], s_stayer, s_opponent)
 
     except asyncio.CancelledError:
         log.info("Room %s — timer cancelled.", room_id[:16])

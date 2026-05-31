@@ -100,6 +100,9 @@ async def room_endpoint(ws: WebSocket, room_id: str):
     if room_id not in game.rooms:
         await ws.close(code=4004, reason="Room not found")
         return
+    if game.room_state.get(room_id) == 'finished':
+        await ws.close(code=4000, reason="Match already finished")
+        return
     if len(game.rooms[room_id]) >= 2:
         await ws.close(code=4003, reason="Room is full")
         return
@@ -138,6 +141,7 @@ async def room_endpoint(ws: WebSocket, room_id: str):
                 game.room_reconnect_tasks[room_id].cancel()
                 game.room_reconnect_tasks.pop(room_id, None)
             stayer = next(p for p in game.rooms[room_id] if p is not ws)
+            await game.ws_send(stayer, {"type": "opponent_reconnected"})
             await game.ws_send(stayer, {"type": "start_offer"})
             remaining = game.room_remaining.get(room_id, 0)
             await game.ws_send(ws, {"type": "sync", "remaining": remaining})
@@ -168,6 +172,9 @@ async def room_endpoint(ws: WebSocket, room_id: str):
             game.rooms[room_id].remove(ws)
 
         if game.room_state.get(room_id) == 'in_progress':
+            # Notify stayer that opponent is reconnecting
+            for peer in game.rooms.get(room_id, []):
+                await game.ws_send(peer, {"type": "opponent_reconnecting", "timeout": 15})
             # Grace period: give the player 15s to reconnect before ending the match
             if room_id in game.room_reconnect_tasks:
                 game.room_reconnect_tasks[room_id].cancel()

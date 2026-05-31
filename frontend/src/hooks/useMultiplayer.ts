@@ -20,6 +20,7 @@ interface UseMultiplayerOptions {
   localCount: number
   localVideoRef: React.RefObject<HTMLVideoElement | null>
   remoteVideoRef: React.RefObject<HTMLVideoElement | null>
+  getToken: () => Promise<string | null>
 }
 
 interface UseMultiplayerReturn {
@@ -41,6 +42,7 @@ export function useMultiplayer({
   localCount,
   localVideoRef,
   remoteVideoRef,
+  getToken,
 }: UseMultiplayerOptions): UseMultiplayerReturn {
   const [status, setStatus] = useState<MultiplayerStatus>('idle')
   const [opponentCount, setOpponentCount] = useState(0)
@@ -110,7 +112,11 @@ export function useMultiplayer({
       const ws = new WebSocket(roomWsUrl)
       wsRef.current = ws
 
-      ws.onopen = () => {
+      ws.onopen = async () => {
+        // Always send identify — server ignores it if room is 'waiting',
+        // uses it to verify identity if room is 'in_progress'
+        const token = await getToken()
+        if (token) ws.send(JSON.stringify({ type: 'identify', clerk_token: token }))
         if (mountedRef.current) setStatus('waiting_peer')
       }
 
@@ -158,6 +164,13 @@ export function useMultiplayer({
             } catch { /* ignore stale candidates */ }
             break
           }
+
+          case 'sync':
+            // Reconnected to an in-progress match — jump to current state
+            setCountdown(null)
+            setRemaining(msg.remaining as number)
+            setStatus('matched')
+            break
 
           case 'countdown':
             setCountdown(msg.value as number)

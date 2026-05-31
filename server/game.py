@@ -26,6 +26,9 @@ room_scores: dict[str, dict[int, int]] = {}
 _match_tasks: dict[str, asyncio.Task] = {}
 player_info: dict[int, dict] = {}
 room_player_info: dict[str, list[dict]] = {}
+room_state: dict[str, str] = {}       # room_id -> 'waiting' | 'in_progress' | 'finished'
+room_remaining: dict[str, int] = {}   # room_id -> seconds remaining in match
+room_reconnect_tasks: dict[str, asyncio.Task] = {}  # grace-period tasks on disconnect
 
 # ── Transport helpers ──────────────────────────────────────────────────────────
 
@@ -59,10 +62,12 @@ async def match_timer(room_id: str) -> None:
             await broadcast({"type": "countdown", "value": i})
             await asyncio.sleep(1)
 
+        room_state[room_id] = 'in_progress'
         await broadcast({"type": "game_start"})
         log.info("Room %s — match started.", room_id[:16])
 
         for i in range(67, -1, -1):
+            room_remaining[room_id] = i
             await broadcast({"type": "tick", "remaining": i})
             if i == 0:
                 break
@@ -81,6 +86,7 @@ async def match_timer(room_id: str) -> None:
             )
             await ws_send(players[0], {"type": "game_over", "your_score": s0, "opponent_score": s1, "winner": w0})
             await ws_send(players[1], {"type": "game_over", "your_score": s1, "opponent_score": s0, "winner": w1})
+            room_state[room_id] = 'finished'
             log.info("Room %s — game over: %d vs %d", room_id[:16], s0, s1)
 
             pinfos = room_player_info.get(room_id, [])

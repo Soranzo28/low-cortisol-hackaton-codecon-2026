@@ -51,6 +51,7 @@ async def queue_endpoint(ws: WebSocket):
         opp_nick = opp_info.get("nick", "anon")
         opp_score = opp_info.get("total_score", 0)
         game.room_player_info[room_id] = [opp_info, game.player_info[id(ws)]]
+        game.room_state[room_id] = 'waiting'
 
         await game.ws_send(opponent, {"type": "matched", "roomId": room_id, "role": "offerer", "opp_nick": nick, "opp_score": total_score, "your_score": opp_score})
         await game.ws_send(ws, {"type": "matched", "roomId": room_id, "role": "answerer", "opp_nick": opp_nick, "opp_score": opp_score, "your_score": total_score})
@@ -81,6 +82,19 @@ async def queue_endpoint(ws: WebSocket):
         game.player_info.pop(id(ws), None)
 
 
+async def _reconnect_grace(room_id: str) -> None:
+    """End the match if the disconnected player doesn't reconnect within 15s."""
+    await asyncio.sleep(15)
+    game.room_reconnect_tasks.pop(room_id, None)
+    if len(game.rooms.get(room_id, [])) < 2:
+        log.info("Room %s — grace period expired, ending match.", room_id[:16])
+        for peer in game.rooms.get(room_id, []):
+            await game.ws_send(peer, {"type": "opponent_left"})
+        if room_id in game._match_tasks:
+            game._match_tasks[room_id].cancel()
+        game.room_state[room_id] = 'finished'
+
+
 @router.websocket("/room/{room_id}")
 async def room_endpoint(ws: WebSocket, room_id: str):
     if room_id not in game.rooms:
@@ -91,13 +105,43 @@ async def room_endpoint(ws: WebSocket, room_id: str):
         return
 
     await ws.accept()
+
+    # If room is in_progress, verify this player belongs to the original match
+    if game.room_state.get(room_id) == 'in_progress':
+        clerk_user_id: str | None = None
+        try:
+            raw = await asyncio.wait_for(ws.receive_text(), timeout=5.0)
+            msg = json.loads(raw)
+            if msg.get("type") == "identify" and msg.get("clerk_token"):
+                clerk_user_id = await verify_clerk_token(msg["clerk_token"])
+        except Exception:
+            pass
+
+        original_ids = {p.get("clerk_user_id") for p in game.room_player_info.get(room_id, [])}
+        if not clerk_user_id or clerk_user_id not in original_ids:
+            await ws.close(code=4003, reason="Not a participant of this room")
+            return
+
     game.rooms[room_id].append(ws)
     log.info("Player connected to room %s (%d/2)", room_id[:16], len(game.rooms[room_id]))
 
     if len(game.rooms[room_id]) == 2:
-        await game.ws_send(game.rooms[room_id][0], {"type": "start_offer"})
-        game.room_scores[room_id] = {}
-        game._match_tasks[room_id] = asyncio.create_task(game.match_timer(room_id))
+        state = game.room_state.get(room_id)
+        if state == 'waiting':
+            # Fresh start
+            await game.ws_send(game.rooms[room_id][0], {"type": "start_offer"})
+            game.room_scores[room_id] = {}
+            game._match_tasks[room_id] = asyncio.create_task(game.match_timer(room_id))
+        elif state == 'in_progress':
+            # Player reconnected — cancel grace period and resync
+            if room_id in game.room_reconnect_tasks:
+                game.room_reconnect_tasks[room_id].cancel()
+                game.room_reconnect_tasks.pop(room_id, None)
+            stayer = next(p for p in game.rooms[room_id] if p is not ws)
+            await game.ws_send(stayer, {"type": "start_offer"})
+            remaining = game.room_remaining.get(room_id, 0)
+            await game.ws_send(ws, {"type": "sync", "remaining": remaining})
+            log.info("Room %s — player reconnected, synced at %ds.", room_id[:16], remaining)
 
     try:
         async for raw in ws.iter_text():
@@ -114,16 +158,29 @@ async def room_endpoint(ws: WebSocket, room_id: str):
                 await game.relay_to_opponent(room_id, ws, {"type": "opponent_count", "value": msg.get("value", 0)})
             elif t == "reset":
                 await game.relay_to_opponent(room_id, ws, {"type": "opponent_reset"})
+            elif t == "identify":
+                pass  # consumed on reconnect before loop; ignore if it arrives here
 
     except WebSocketDisconnect:
         log.info("Player disconnected from room %s.", room_id[:16])
     finally:
         if ws in game.rooms.get(room_id, []):
             game.rooms[room_id].remove(ws)
-        if room_id in game._match_tasks:
-            game._match_tasks[room_id].cancel()
-        for peer in game.rooms.get(room_id, []):
-            await game.ws_send(peer, {"type": "opponent_left"})
+
+        if game.room_state.get(room_id) == 'in_progress':
+            # Grace period: give the player 15s to reconnect before ending the match
+            if room_id in game.room_reconnect_tasks:
+                game.room_reconnect_tasks[room_id].cancel()
+            game.room_reconnect_tasks[room_id] = asyncio.create_task(
+                _reconnect_grace(room_id)
+            )
+            log.info("Room %s — player disconnected, grace period started.", room_id[:16])
+        else:
+            # Not in progress — end immediately
+            if room_id in game._match_tasks:
+                game._match_tasks[room_id].cancel()
+            for peer in game.rooms.get(room_id, []):
+                await game.ws_send(peer, {"type": "opponent_left"})
 
     async def _maybe_destroy(rid: str) -> None:
         await asyncio.sleep(5)
@@ -131,6 +188,8 @@ async def room_endpoint(ws: WebSocket, room_id: str):
             game.rooms.pop(rid, None)
             game.room_scores.pop(rid, None)
             game.room_player_info.pop(rid, None)
+            game.room_state.pop(rid, None)
+            game.room_remaining.pop(rid, None)
             log.info("Room %s destroyed.", rid[:16])
         game._cleanup_tasks.pop(rid, None)
 

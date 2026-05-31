@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { useAuth } from '@clerk/clerk-react'
 import { useGestureDetector } from '@/hooks/useGestureDetector'
 import { useMultiplayer, GameOverData } from '@/hooks/useMultiplayer'
 import { StatusBadge } from '@/components/StatusBadge'
@@ -38,6 +39,7 @@ export default function RoomPage() {
   const navigate = useNavigate()
   const isMobile = useIsMobile()
   const matchCtx = loadMatchContext()
+  const { getToken } = useAuth()
 
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -58,6 +60,7 @@ export default function RoomPage() {
     localCount: gameStartedRef.current ? Math.max(0, count - baseCountRef.current) : 0,
     localVideoRef: videoRef,
     remoteVideoRef,
+    getToken,
   })
 
   useEffect(() => {

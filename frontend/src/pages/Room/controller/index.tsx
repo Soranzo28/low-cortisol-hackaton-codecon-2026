@@ -51,6 +51,7 @@ export function useRoomController() {
   const [opponentGlowFading, setOpponentGlowFading] = useState(false)
   const [eventWinnerName, setEventWinnerName] = useState<string | null>(null)
   const [eventBonus, setEventBonus] = useState(0)
+  const [opponentEventBonus, setOpponentEventBonus] = useState(0)
 
   const activeEventIdRef = useRef<string | null>(null)
   const sendMessageRef = useRef<((msg: object) => void) | null>(null)
@@ -128,6 +129,7 @@ export function useRoomController() {
     setEventWinnerName(name)
     setEventPanelVisible(true)  // ensure panel is open to show winner
     if (isMe) setEventBonus(eventWinner.bonus)
+    else setOpponentEventBonus(eventWinner.bonus)
 
     // Show winner for 3s then slide out
     const tHide = setTimeout(() => {
@@ -186,7 +188,8 @@ export function useRoomController() {
   return {
     videoRef, canvasRef, remoteVideoRef,
     isMobile, isMatched, cameraReady, matchCtx,
-    gameCount, gestureStatus, mpStatus, opponentCount,
+    gameCount, gestureStatus, mpStatus,
+    opponentCount: opponentCount + opponentEventBonus,
     countdown, remaining, gameOver, latencyMs, opponentReconnecting, navigate,
     isTrain, user, myNick,
     // Event system

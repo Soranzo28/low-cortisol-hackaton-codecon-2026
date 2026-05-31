@@ -2,7 +2,8 @@ import { useRef, useEffect, useCallback, useState } from 'react'
 import auraTrack from '@/assets/track/aura.mp3'
 import lowTrack from '@/assets/track/low.mp3'
 
-const DEFAULT_VOLUME = 0.3
+/** Max real audio volume for aura (what 100% maps to). */
+const MAX_AUDIO_VOLUME = 0.3
 const VOLUME_STEP = 0.1
 
 /**
@@ -19,15 +20,18 @@ export function useGameAudio() {
   const auraTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const fadeRafRef = useRef<number | null>(null)
 
-  // User-controlled master volume for aura (0–1)
-  const [volume, setVolume] = useState(DEFAULT_VOLUME)
+  // User-facing volume: 0 = muted, 1 = 100% (which maps to MAX_AUDIO_VOLUME real)
+  const [volume, setVolume] = useState(1)
+
+  /** Convert user-facing volume (0–1) to real audio volume (0–MAX_AUDIO_VOLUME). */
+  const toReal = (v: number) => v * MAX_AUDIO_VOLUME
 
   // Lazily create audio elements (only once)
   const getAura = useCallback(() => {
     if (!auraRef.current) {
       const audio = new Audio(auraTrack)
       audio.loop = true
-      audio.volume = DEFAULT_VOLUME
+      audio.volume = toReal(1)
       auraRef.current = audio
     }
     return auraRef.current
@@ -47,8 +51,9 @@ export function useGameAudio() {
   useEffect(() => {
     const audio = auraRef.current
     if (audio && !audio.paused && !fadeRafRef.current) {
-      audio.volume = volume
+      audio.volume = toReal(volume)
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [volume])
 
   const volumeUp = useCallback(() => {
@@ -76,7 +81,7 @@ export function useGameAudio() {
     if (!audio.paused) return
 
     auraTimerRef.current = setTimeout(() => {
-      audio.volume = volume
+      audio.volume = toReal(volume)
       audio.currentTime = 0
       audio.play().catch(() => {})
     }, 2_000)
@@ -98,7 +103,7 @@ export function useGameAudio() {
     if (audio && !audio.paused) {
       audio.pause()
       audio.currentTime = 0
-      audio.volume = volume
+      audio.volume = toReal(volume)
     }
   }, [volume])
 
@@ -124,7 +129,7 @@ export function useGameAudio() {
       } else {
         audio.pause()
         audio.currentTime = 0
-        audio.volume = volume // reset to user-set volume
+        audio.volume = toReal(volume) // reset to user-set volume
         fadeRafRef.current = null
       }
     }

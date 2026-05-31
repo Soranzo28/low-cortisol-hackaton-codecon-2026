@@ -1,3 +1,4 @@
+import { useRef, useState, useEffect } from 'react'
 import type React from 'react'
 
 interface OpponentPanelProps {
@@ -9,6 +10,15 @@ interface OpponentPanelProps {
 
 export function OpponentPanel({ remoteVideoRef, opponentCount, latencyMs, isReconnecting = false }: OpponentPanelProps) {
   const lColor = latencyColor(latencyMs)
+  const prevCountRef = useRef(opponentCount)
+  const [animKey, setAnimKey] = useState(0)
+
+  useEffect(() => {
+    if (opponentCount > prevCountRef.current) {
+      setAnimKey(k => k + 1)
+    }
+    prevCountRef.current = opponentCount
+  }, [opponentCount])
 
   return (
     <div className="relative w-full aspect-square overflow-hidden rounded-3xl bg-neutral-900/60 border border-neutral-800 shadow-2xl backdrop-blur-sm">
@@ -39,8 +49,19 @@ export function OpponentPanel({ remoteVideoRef, opponentCount, latencyMs, isReco
 
       {/* Top-left: aura score + latency */}
       <div style={{ position: 'absolute', top: '0.75rem', left: '0.75rem', zIndex: 11, display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-        <div style={{ background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(6px)', borderRadius: '0.5rem', padding: '0.3rem 0.65rem', display: 'inline-flex', alignItems: 'center' }}>
-          <span style={{ color: '#00ff88', fontSize: '1.15rem', fontWeight: 800, fontFamily: "'Inter', sans-serif", textShadow: '0 0 12px rgba(0,255,136,0.55)' }}>
+        <div style={{ background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(6px)', borderRadius: '0.5rem', padding: '0.3rem 0.75rem', display: 'inline-flex', alignItems: 'center' }}>
+          <span
+            key={animKey}
+            style={{
+              color: 'white',
+              fontSize: '2rem',
+              fontWeight: 800,
+              fontFamily: "'Inter', sans-serif",
+              textShadow: '0 2px 16px rgba(255,255,255,0.3)',
+              display: 'inline-block',
+              animation: animKey > 0 ? 'sanfona 0.45s ease-out' : 'none',
+            }}
+          >
             +{opponentCount} 💀
           </span>
         </div>

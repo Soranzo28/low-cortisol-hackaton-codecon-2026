@@ -11,11 +11,12 @@ const MODEL_URL =
 const HAND_MODEL_URL =
   'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task'
 
-const TOP_RATIO = 0.45
-const BOTTOM_RATIO = 0.55
+const TOP_RATIO = 0.47
+const BOTTOM_RATIO = 0.53
 const MIN_VISIBILITY = 0.5
 const STATE_RESET_TIMEOUT_MS = 1000
-const EVENT_HOLD_MS = 1000  // hold duration for absolute_cinema
+const EVENT_HOLD_MS = 800          // hold duration for events
+const MISS_TOLERANCE_MS = 150      // tolerate brief detection gaps without resetting hold
 
 const KEY_LANDMARKS: Record<number, string> = {
   11: 'L.Shoulder', 12: 'R.Shoulder',
@@ -86,15 +87,14 @@ function isRockHand(hand: Landmark[]): boolean {
   return indexUp && pinkyUp && middleDown && ringDown
 }
 
-// Thumbs Up: thumb tip above its IP joint and above the index knuckle, fingers curled at PIP
+// Thumbs Up: thumb tip above its IP joint, four fingers curled (with small tolerance)
 function isThumbsUp(hand: Landmark[]): boolean {
-  // Thumb extending upward: tip above IP joint AND above the index MCP (knuckle line)
-  const thumbUp    = hand[4].y < hand[3].y && hand[4].y < hand[5].y
-  // Fingers curled: tips below PIP joints
-  const indexDown  = hand[8].y  >= hand[6].y
-  const middleDown = hand[12].y >= hand[10].y
-  const ringDown   = hand[16].y >= hand[14].y
-  const pinkyDown  = hand[20].y >= hand[18].y
+  const TOL = 0.03  // normalized-coord tolerance — fingers don't need to be perfectly curled
+  const thumbUp    = hand[4].y < hand[3].y              // tip above IP (thumb extending)
+  const indexDown  = hand[8].y  >= hand[6].y  - TOL
+  const middleDown = hand[12].y >= hand[10].y - TOL
+  const ringDown   = hand[16].y >= hand[14].y - TOL
+  const pinkyDown  = hand[20].y >= hand[18].y - TOL
   return thumbUp && indexDown && middleDown && ringDown && pinkyDown
 }
 
@@ -149,6 +149,7 @@ function drawHandDebug(
 function drawThresholdLines(
   ctx: CanvasRenderingContext2D, W: number, H: number,
   anyAbove: boolean, anyBelow: boolean, wristsDetected: boolean,
+  showLabels: boolean = true,
 ) {
   const topY = TOP_RATIO * H
   const bottomY = BOTTOM_RATIO * H
@@ -161,8 +162,10 @@ function drawThresholdLines(
     ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.setLineDash([12, 8])
     ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke()
     ctx.setLineDash([])
-    ctx.fillStyle = color; ctx.font = 'bold 12px monospace'
-    ctx.fillText(label, 12, y - 6)
+    if (showLabels) {
+      ctx.fillStyle = color; ctx.font = 'bold 12px monospace'
+      ctx.fillText(label, 12, y - 6)
+    }
     ctx.restore()
   }
 }
@@ -233,7 +236,8 @@ export function useGestureDetector(
   const lastArmStateRef = useRef<ArmState>(null)
   const lastCountTimeRef = useRef<number>(0)
   const lowVisStartRef = useRef<number>(0)
-  const eventHoldStartRef = useRef<number>(0)  // 0=idle, >0=holding start time, -1=completed
+  const eventHoldStartRef = useRef<number>(0)   // 0=idle, >0=holding start time, -1=completed
+  const eventLastDetectedRef = useRef<number>(0) // timestamp of last positive detection
 
   // Always-fresh refs so the rAF loop never captures stale closures
   const modeRef = useRef(mode)
@@ -247,6 +251,7 @@ export function useGestureDetector(
   useEffect(() => {
     if (mode === 'event') {
       eventHoldStartRef.current = 0
+      eventLastDetectedRef.current = 0
     }
   }, [mode])
 
@@ -366,14 +371,18 @@ export function useGestureDetector(
 
           const now = Date.now()
           if (poseDetected) {
+            eventLastDetectedRef.current = now
             if (eventHoldStartRef.current === 0) {
               eventHoldStartRef.current = now
             } else if (eventHoldStartRef.current > 0 && now - eventHoldStartRef.current >= EVENT_HOLD_MS) {
               eventHoldStartRef.current = -1
               onEventCompleteRef.current?.()
             }
-          } else {
-            if (eventHoldStartRef.current !== -1) eventHoldStartRef.current = 0
+          } else if (eventHoldStartRef.current > 0) {
+            // Only reset if pose has been missing longer than the tolerance window
+            if (now - eventLastDetectedRef.current > MISS_TOLERANCE_MS) {
+              eventHoldStartRef.current = 0
+            }
           }
         }
         animFrameRef.current = requestAnimationFrame(detect)
@@ -414,7 +423,18 @@ export function useGestureDetector(
             drawDebug(canvasRef.current, lms, t, leftPalmScreen, rightPalmScreen,
               leftPalmAbove, rightPalmAbove, leftPalmBelow, rightPalmBelow, wristsDetected)
           } else {
-            clearCanvas()
+            // Always draw threshold lines in game mode (no labels)
+            const cvs = canvasRef.current
+            const ctx = cvs.getContext('2d')
+            if (ctx) {
+              if (cvs.width !== t.W) cvs.width = t.W
+              if (cvs.height !== t.H) cvs.height = t.H
+              ctx.clearRect(0, 0, t.W, t.H)
+              drawThresholdLines(ctx, t.W, t.H,
+                leftPalmAbove || rightPalmAbove,
+                leftPalmBelow || rightPalmBelow,
+                wristsDetected, false)
+            }
           }
         }
 
@@ -443,7 +463,7 @@ export function useGestureDetector(
             if (cvs.width !== w) cvs.width = w
             if (cvs.height !== h) cvs.height = h
             ctx.clearRect(0, 0, w, h)
-            if (drawOverlay) drawThresholdLines(ctx, w, h, false, false, false)
+            drawThresholdLines(ctx, w, h, false, false, false, drawOverlay)
           }
         }
       }

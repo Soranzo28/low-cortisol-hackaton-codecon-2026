@@ -47,9 +47,9 @@ export function RoomView(props: RoomViewProps) {
       </div>
 
       {/* Main Content Area */}
-      <div className={`relative z-10 w-full flex-1 max-w-6xl mx-auto flex ${isMatched ? (isMobile ? 'flex-col' : 'flex-row') : 'justify-center items-center'} gap-4 md:gap-8`}>
+      <div className={`relative z-10 w-full flex-1 max-w-7xl mx-auto flex ${isMatched && !isMobile ? 'flex-row' : 'flex-col'} justify-center items-center gap-6 md:gap-12`}>
         {/* Local Camera */}
-        <div className={`relative overflow-hidden rounded-3xl bg-neutral-900/60 border border-neutral-800 shadow-2xl backdrop-blur-sm ${isMatched || isTrain ? 'w-full flex-1 min-h-[300px]' : 'w-full max-w-3xl aspect-[4/3] min-h-[400px]'}`}>
+        <div className={`relative overflow-hidden rounded-3xl bg-neutral-900/60 border border-neutral-800 shadow-2xl backdrop-blur-sm aspect-square w-full max-w-[600px] ${isMatched ? 'flex-1' : ''}`}>
           {!cameraReady && (
             <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-neutral-900/80">
               <div className="w-10 h-10 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />

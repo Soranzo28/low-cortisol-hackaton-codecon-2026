@@ -189,7 +189,7 @@ function RankingPanel({ ranking, rankingLoading, fetchRanking, meData }: {
 }) {
   return (
     <div className="w-full order-2 flex flex-col items-center lg:items-center">
-      <div className="w-full max-w-lg flex flex-col gap-3">
+      <div className="w-full max-w-xl flex flex-col gap-3">
         {/* Ranking header */}
         <div className="flex items-center justify-between mb-4 px-2">
           <div className="flex items-center gap-3">
@@ -232,7 +232,7 @@ function RankingPanel({ ranking, rankingLoading, fetchRanking, meData }: {
             </div>
 
             {/* Ranking rows */}
-            <div className="flex flex-col gap-3 overflow-y-auto pr-1.5 max-h-[24.25rem] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-neutral-800 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
+            <div className="flex flex-col gap-3 overflow-y-auto overflow-x-hidden pr-2 max-h-[25rem] pb-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-neutral-800 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
               {ranking.map((entry, i) => {
                 const isMe = meData?.nick === entry.nick
 

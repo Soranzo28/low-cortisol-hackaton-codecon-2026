@@ -41,7 +41,7 @@ export function useRoomController() {
   const { getToken } = useAuth()
   const { user } = useUser()
   const myNick = sessionStorage.getItem('my_nick') ?? user?.firstName ?? 'Você'
-  const { scheduleAura, stopAura, playLow, stopAll: stopAllAudio } = useGameAudio()
+  const { scheduleAura, stopAura, fadeOutAura, playLow, stopAll: stopAllAudio, volume, volumeUp, volumeDown } = useGameAudio()
 
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -197,12 +197,12 @@ export function useRoomController() {
     }
   }, [remaining, gameOver, isTrain, scheduleAura])
 
-  // ── Audio: stop aura on game over, play low.mp3 on victory ──────────────────
+  // ── Audio: fade out aura on game over, fade in low.mp3 on victory ───────────
   useEffect(() => {
     if (!gameOver) return
-    stopAura()
+    fadeOutAura()
     if (gameOver.winner === 'you') playLow()
-  }, [gameOver, stopAura, playLow])
+  }, [gameOver, fadeOutAura, playLow])
 
   const gameCount = (gameStartedRef.current ? Math.max(0, count - baseCountRef.current) : 0) + eventBonus
 
@@ -269,5 +269,9 @@ export function useRoomController() {
     trainSelectedEvent,
     selectTrainEvent,
     stopAllAudio,
+    // Volume controls
+    volume,
+    volumeUp,
+    volumeDown,
   }
 }

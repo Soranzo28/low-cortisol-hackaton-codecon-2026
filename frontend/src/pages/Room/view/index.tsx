@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from 'react'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Volume1, Volume2 } from 'lucide-react'
 import { StatusBadge } from '@/components/StatusBadge'
 import { OpponentPanel } from '@/components/OpponentPanel'
 import { ROUTES } from '@/routes'
@@ -22,6 +22,7 @@ export function RoomView(props: RoomViewProps) {
     opponentGlowActive, opponentGlowFading,
     trainSelectedEvent, selectTrainEvent,
     stopAllAudio,
+    volume, volumeUp, volumeDown,
   } = props
 
   return (
@@ -141,6 +142,9 @@ export function RoomView(props: RoomViewProps) {
       {(mpStatus === 'connecting' || mpStatus === 'waiting_peer') && <WaitingOverlay status={mpStatus} />}
       {gameOver !== null && <GameOverOverlay data={gameOver} onGoHome={() => { stopAllAudio(); navigate(ROUTES.HOME) }} />}
       {mpStatus === 'disconnected' && gameOver === null && !opponentReconnecting && <DisconnectedBanner onGoHome={() => { stopAllAudio(); navigate(ROUTES.HOME) }} />}
+
+      {/* Volume control */}
+      <VolumeControl volume={volume} onUp={volumeUp} onDown={volumeDown} />
     </div>
   )
 }
@@ -396,6 +400,68 @@ function DisconnectedBanner({ onGoHome }: { onGoHome: () => void }) {
     <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 40, padding: '1rem 2rem', background: 'rgba(239,68,68,0.85)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontFamily: "'Inter', sans-serif" }}>
       <span style={{ color: 'white', fontWeight: 600 }}>⚠️ Adversário desconectou.</span>
       <button onClick={onGoHome} style={{ background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.4)', borderRadius: '9999px', padding: '0.4rem 1.2rem', cursor: 'pointer', fontWeight: 600, fontSize: '0.9rem' }}>Voltar ao início</button>
+    </div>
+  )
+}
+
+function VolumeControl({ volume, onUp, onDown }: { volume: number; onUp: () => void; onDown: () => void }) {
+  const pct = Math.round(volume * 100)
+  const btnStyle: React.CSSProperties = {
+    background: 'transparent',
+    border: 'none',
+    color: 'rgba(255,255,255,0.7)',
+    cursor: 'pointer',
+    padding: '0.25rem',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: '0.375rem',
+    transition: 'color 0.15s, background 0.15s',
+  }
+  return (
+    <div style={{
+      position: 'absolute',
+      bottom: '1.5rem',
+      right: '1.5rem',
+      zIndex: 45,
+      display: 'flex',
+      alignItems: 'center',
+      gap: '0.35rem',
+      background: 'rgba(0,0,0,0.55)',
+      backdropFilter: 'blur(8px)',
+      borderRadius: '9999px',
+      padding: '0.3rem 0.65rem',
+      border: '1px solid rgba(255,255,255,0.1)',
+    }}>
+      <button
+        onClick={onDown}
+        style={btnStyle}
+        onMouseEnter={e => { e.currentTarget.style.color = 'white'; e.currentTarget.style.background = 'rgba(255,255,255,0.1)' }}
+        onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.7)'; e.currentTarget.style.background = 'transparent' }}
+        title="Diminuir volume"
+      >
+        <Volume1 size={16} />
+      </button>
+      <span style={{
+        color: 'rgba(255,255,255,0.6)',
+        fontSize: '0.7rem',
+        fontWeight: 600,
+        fontFamily: "'Inter', sans-serif",
+        fontVariantNumeric: 'tabular-nums',
+        minWidth: '2rem',
+        textAlign: 'center',
+      }}>
+        {pct}%
+      </span>
+      <button
+        onClick={onUp}
+        style={btnStyle}
+        onMouseEnter={e => { e.currentTarget.style.color = 'white'; e.currentTarget.style.background = 'rgba(255,255,255,0.1)' }}
+        onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.7)'; e.currentTarget.style.background = 'transparent' }}
+        title="Aumentar volume"
+      >
+        <Volume2 size={16} />
+      </button>
     </div>
   )
 }

@@ -4,13 +4,12 @@ interface OpponentPanelProps {
   remoteVideoRef: React.RefObject<HTMLVideoElement>
   opponentCount: number
   latencyMs: number | null
-  isMobile: boolean
   oppNick?: string
   oppRankingScore?: number
   isReconnecting?: boolean
 }
 
-export function OpponentPanel({ remoteVideoRef, opponentCount, latencyMs, isMobile, oppNick = 'Adversário', oppRankingScore = 0, isReconnecting = false }: OpponentPanelProps) {
+export function OpponentPanel({ remoteVideoRef, opponentCount, latencyMs, oppNick = 'Adversário', oppRankingScore = 0, isReconnecting = false }: OpponentPanelProps) {
   const lColor = latencyColor(latencyMs)
 
   return (

@@ -1,4 +1,3 @@
-import React from 'react'
 import { StatusBadge } from '@/components/StatusBadge'
 import { OpponentPanel } from '@/components/OpponentPanel'
 import { ROUTES } from '@/routes'
@@ -64,7 +63,7 @@ export function RoomView(props: RoomViewProps) {
 
         {/* Opponent Camera */}
         {isMatched && (
-          <OpponentPanel remoteVideoRef={remoteVideoRef} opponentCount={opponentCount} latencyMs={latencyMs} isMobile={isMobile} oppNick={matchCtx.oppNick} oppRankingScore={matchCtx.oppScore} isReconnecting={opponentReconnecting} />
+          <OpponentPanel remoteVideoRef={remoteVideoRef} opponentCount={opponentCount} latencyMs={latencyMs} oppNick={matchCtx.oppNick} oppRankingScore={matchCtx.oppScore} isReconnecting={opponentReconnecting} />
         )}
       </div>
 
@@ -73,7 +72,6 @@ export function RoomView(props: RoomViewProps) {
       {!isMatched && <StatusBadge status={gestureStatus} isMobile={isMobile} />}
       {(mpStatus === 'connecting' || mpStatus === 'waiting_peer') && <WaitingOverlay status={mpStatus} />}
       {gameOver !== null && <GameOverOverlay data={gameOver} onGoHome={() => navigate(ROUTES.HOME)} />}
-      {opponentReconnecting && <ReconnectingBanner timeout={15} />}
       {mpStatus === 'disconnected' && gameOver === null && !opponentReconnecting && <DisconnectedBanner onGoHome={() => navigate(ROUTES.HOME)} />}
     </div>
   )

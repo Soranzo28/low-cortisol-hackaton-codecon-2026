@@ -1,4 +1,3 @@
-import { useState, useEffect, useRef } from 'react'
 import { StatusBadge } from '@/components/StatusBadge'
 import { OpponentPanel } from '@/components/OpponentPanel'
 import { ROUTES } from '@/routes'
@@ -16,31 +15,11 @@ export function RoomView(props: RoomViewProps) {
     mpStatus, opponentCount, countdown,
     remaining, gameOver, latencyMs, opponentReconnecting, navigate,
     isTrain, user, myNick,
+    eventPanelVisible, eventCountdown, eventWinnerName, eventTitle, eventInstruction,
+    localGlowActive, localGlowFading,
+    opponentGlowActive, opponentGlowFading,
+    trainSelectedEvent, selectTrainEvent,
   } = props
-
-  const [eventVisible, setEventVisible] = useState(false)
-  const [glowActive, setGlowActive] = useState(false)
-  const [glowFading, setGlowFading] = useState(false)
-  const eventFiredRef = useRef(false)
-
-  useEffect(() => {
-    if (isMatched && !eventFiredRef.current) {
-      eventFiredRef.current = true
-      const t = setTimeout(() => {
-        setEventVisible(true)
-        setTimeout(() => setEventVisible(false), 8000)
-      }, 10000)
-      return () => clearTimeout(t)
-    }
-  }, [isMatched])
-
-  const handleChallengeCompleted = () => {
-    setEventVisible(false)
-    setGlowActive(true)
-    setGlowFading(false)
-    setTimeout(() => setGlowFading(true), 4500)
-    setTimeout(() => { setGlowActive(false); setGlowFading(false) }, 5000)
-  }
 
   return (
     <div className="relative min-h-screen w-full flex flex-col p-4 md:p-8 overflow-hidden bg-[#09090b] text-neutral-200 font-sans">
@@ -52,7 +31,7 @@ export function RoomView(props: RoomViewProps) {
 
       {/* Header / Timer */}
       <div className="w-full h-12 md:h-16 shrink-0 relative z-20 flex justify-between items-start">
-        <div className="flex-1">
+        <div className="flex-1 flex items-center gap-2">
           {isTrain && (
             <button onClick={() => navigate(ROUTES.HOME)} className="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-white rounded-full text-sm font-semibold transition-colors">
               ← Voltar
@@ -92,15 +71,16 @@ export function RoomView(props: RoomViewProps) {
           ? { flex: '1 1 0', minWidth: 0, maxWidth: 750, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }
           : { width: '100%', maxWidth: 600, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }
         }>
-          {/* Camera panel */}
-          <div className="relative overflow-hidden rounded-3xl bg-neutral-900/60 border border-neutral-800 shadow-2xl backdrop-blur-sm aspect-square w-full">
-            {/* Glow border overlay */}
-            {glowActive && (
+          {/* Camera panel + optional train event selector side by side */}
+          <div style={{ display: 'flex', width: '100%', gap: '0.75rem', alignItems: 'flex-start' }}>
+          <div className="relative overflow-hidden rounded-3xl bg-neutral-900/60 border border-neutral-800 shadow-2xl backdrop-blur-sm"
+            style={{ flex: '1 1 0', minWidth: 0, aspectRatio: '1/1' }}>
+            {localGlowActive && (
               <div style={{
                 position: 'absolute', inset: 0, borderRadius: 'inherit', zIndex: 20, pointerEvents: 'none',
                 border: '2px solid #00ff88',
-                animation: glowFading ? 'none' : 'glow-pulse 1.2s ease-in-out infinite',
-                opacity: glowFading ? 0 : 1,
+                animation: localGlowFading ? 'none' : 'glow-pulse 1.2s ease-in-out infinite',
+                opacity: localGlowFading ? 0 : 1,
                 transition: 'opacity 0.5s ease',
               }} />
             )}
@@ -114,6 +94,11 @@ export function RoomView(props: RoomViewProps) {
             <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none z-[5]" />
             {(isMatched || isTrain) && <PlayerInfoOverlay score={gameCount} latencyMs={latencyMs} />}
           </div>
+          {/* Train event selector — right next to the camera */}
+          {isTrain && (
+            <TrainEventSelector selected={trainSelectedEvent} onSelect={selectTrainEvent} />
+          )}
+          </div>{/* end camera+selector row */}
           {(isMatched || isTrain) && (
             <PlayerBelowInfo name={isTrain ? 'Treino' : myNick} rankingScore={matchCtx.myScore} avatarUrl={user?.imageUrl ?? undefined} />
           )}
@@ -130,11 +115,16 @@ export function RoomView(props: RoomViewProps) {
                 latencyMs={latencyMs}
                 isReconnecting={opponentReconnecting}
               />
-              <EventPanel
-                visible={eventVisible}
-                text="Desafio: faça 5 movimentos seguidos sem parar!"
-                onComplete={handleChallengeCompleted}
-              />
+              {opponentGlowActive && (
+                <div style={{
+                  position: 'absolute', inset: 0, borderRadius: 'inherit', zIndex: 20, pointerEvents: 'none',
+                  border: '2px solid #00ff88',
+                  animation: opponentGlowFading ? 'none' : 'glow-pulse 1.2s ease-in-out infinite',
+                  opacity: opponentGlowFading ? 0 : 1,
+                  transition: 'opacity 0.5s ease',
+                }} />
+              )}
+              <EventPanel visible={eventPanelVisible} countdown={eventCountdown} winnerName={eventWinnerName} title={eventTitle} instruction={eventInstruction} />
             </div>
             <PlayerBelowInfo name={matchCtx.oppNick} rankingScore={matchCtx.oppScore} avatarUrl={matchCtx.oppImageUrl ?? undefined} />
           </div>
@@ -201,20 +191,67 @@ function PlayerBelowInfo({ name, rankingScore, avatarUrl }: { name: string; rank
   )
 }
 
-function EventPanel({ visible, text, onComplete }: { visible: boolean; text: string; onComplete: () => void }) {
+const TRAIN_EVENTS = [
+  { id: 'absolute_cinema', label: 'Absolute Cinema', icon: '🤲', desc: 'Duas palmas abertas por 1s' },
+  { id: 'hype_wave',       label: 'Hype Wave',       icon: '🤚', desc: 'Mão aberta agitando + punho' },
+]
+
+function TrainEventSelector({ selected, onSelect }: { selected: string | null; onSelect: (id: string) => void }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', width: 168, flexShrink: 0 }}>
+      <span style={{ fontSize: '0.6rem', fontWeight: 700, color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.1em', paddingLeft: '0.25rem' }}>
+        Testar Evento
+      </span>
+      {TRAIN_EVENTS.map(ev => (
+        <button
+          key={ev.id}
+          onClick={() => onSelect(ev.id)}
+          style={{
+            background: selected === ev.id ? 'rgba(245,158,11,0.12)' : 'rgba(255,255,255,0.04)',
+            border: `1px solid ${selected === ev.id ? 'rgba(245,158,11,0.45)' : 'rgba(255,255,255,0.08)'}`,
+            borderRadius: '0.75rem',
+            padding: '0.65rem 0.8rem',
+            cursor: 'pointer',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-start',
+            gap: '0.2rem',
+            transition: 'background 0.2s, border-color 0.2s',
+            width: '100%',
+            textAlign: 'left',
+          }}
+        >
+          <span style={{ fontSize: '0.8rem', fontWeight: 700, color: selected === ev.id ? '#f59e0b' : 'rgba(255,255,255,0.75)', fontFamily: "'Inter', sans-serif" }}>
+            {ev.icon} {ev.label}
+          </span>
+          <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.35)', fontFamily: "'Inter', sans-serif", lineHeight: 1.3 }}>
+            {ev.desc}
+          </span>
+          {selected === ev.id && (
+            <span style={{ fontSize: '0.6rem', color: '#f59e0b', fontFamily: "'Inter', sans-serif", fontWeight: 600, marginTop: '0.1rem' }}>
+              ● Detectando…
+            </span>
+          )}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function EventPanel({ visible, countdown, winnerName, title, instruction }: { visible: boolean; countdown: number; winnerName: string | null; title: string; instruction: string }) {
   return (
     <div style={{
       position: 'absolute',
-      top: '18%',
+      top: '12%',
       right: 0,
-      bottom: '18%',
-      width: '74%',
+      bottom: '12%',
+      width: '78%',
       zIndex: 20,
       transform: visible ? 'translateX(0)' : 'translateX(110%)',
-      transition: 'transform 0.45s cubic-bezier(0.16, 1, 0.3, 1)',
-      background: 'rgba(10,10,20,0.88)',
-      backdropFilter: 'blur(10px)',
-      border: '1px solid rgba(255,255,255,0.1)',
+      transition: 'transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), background 0.4s ease, border-color 0.4s ease',
+      background: winnerName ? 'rgba(0,20,10,0.94)' : 'rgba(10,10,20,0.92)',
+      backdropFilter: 'blur(12px)',
+      border: `1px solid ${winnerName ? 'rgba(0,255,136,0.25)' : 'rgba(255,255,255,0.1)'}`,
       borderRight: 'none',
       borderRadius: '1rem 0 0 1rem',
       display: 'flex',
@@ -222,33 +259,43 @@ function EventPanel({ visible, text, onComplete }: { visible: boolean; text: str
       alignItems: 'center',
       justifyContent: 'center',
       padding: '1.25rem 1.5rem',
-      gap: '1rem',
-      pointerEvents: visible ? 'auto' : 'none',
+      gap: '0.85rem',
+      pointerEvents: 'none',
     }}>
-      <span style={{ color: '#f59e0b', fontSize: '0.7rem', fontWeight: 700, fontFamily: "'Inter', sans-serif", letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-        ⚡ Evento
-      </span>
-      <p style={{ color: 'white', fontFamily: "'Inter', sans-serif", fontWeight: 600, fontSize: '0.9rem', textAlign: 'center', lineHeight: 1.4, margin: 0 }}>
-        {text}
-      </p>
-      <button
-        onClick={onComplete}
-        style={{
-          background: 'linear-gradient(135deg, #00ff88, #00cc6a)',
-          color: '#000',
-          border: 'none',
-          borderRadius: '9999px',
-          padding: '0.5rem 1.25rem',
-          fontSize: '0.8rem',
-          fontWeight: 700,
-          cursor: 'pointer',
-          fontFamily: "'Inter', sans-serif",
-          letterSpacing: '0.04em',
-          marginTop: '0.25rem',
-        }}
-      >
-        Cumpri o desafio ✓
-      </button>
+      {winnerName ? (
+        <>
+          <span style={{ fontSize: '1.8rem' }}>🏆</span>
+          <p style={{ color: '#00ff88', fontFamily: "'Inter', sans-serif", fontWeight: 800, fontSize: '0.95rem', textAlign: 'center', lineHeight: 1.4, margin: 0, textShadow: '0 0 12px rgba(0,255,136,0.5)' }}>
+            {winnerName} ganhou o evento!
+          </p>
+          <p style={{ color: 'rgba(255,255,255,0.5)', fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: '0.72rem', textAlign: 'center', margin: 0 }}>
+            +15 pontos de bônus
+          </p>
+        </>
+      ) : (
+        <>
+          <span style={{ color: '#f59e0b', fontSize: '0.7rem', fontWeight: 700, fontFamily: "'Inter', sans-serif", letterSpacing: '0.14em', textTransform: 'uppercase' }}>
+            ⚡ Evento
+          </span>
+          <p style={{ color: 'white', fontFamily: "'Inter', sans-serif", fontWeight: 700, fontSize: '1rem', textAlign: 'center', lineHeight: 1.4, margin: 0 }}>
+            {title}
+          </p>
+          <p style={{ color: 'rgba(255,255,255,0.75)', fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: '0.78rem', textAlign: 'center', lineHeight: 1.5, margin: 0 }}>
+            {instruction}
+          </p>
+          <div style={{
+            width: 44, height: 44, borderRadius: '50%',
+            background: countdown <= 2 ? 'rgba(239,68,68,0.2)' : 'rgba(245,158,11,0.15)',
+            border: `2px solid ${countdown <= 2 ? '#ef4444' : '#f59e0b'}`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            transition: 'background 0.3s, border-color 0.3s',
+          }}>
+            <span style={{ color: countdown <= 2 ? '#ef4444' : '#f59e0b', fontWeight: 800, fontSize: '1.1rem', fontFamily: "'Inter', sans-serif", fontVariantNumeric: 'tabular-nums' }}>
+              {Math.max(0, countdown)}
+            </span>
+          </div>
+        </>
+      )}
     </div>
   )
 }

@@ -134,9 +134,9 @@ export function HomeView(props: HomeViewProps) {
                   <Link to="/room/local?mode=train" className="w-full h-16 md:h-14 rounded-2xl bg-neutral-900/50 border border-neutral-800 text-neutral-300 font-medium tracking-tight transition-colors hover:bg-neutral-800 hover:text-white flex items-center justify-center">
                     Treinar local
                   </Link>
-                  <a href="#" className="w-full h-16 md:h-14 rounded-2xl bg-neutral-900/50 border border-neutral-800 text-neutral-300 font-medium tracking-tight transition-colors hover:bg-neutral-800 hover:text-white flex items-center justify-center">
+                  <Link to="/sobre" className="w-full h-16 md:h-14 rounded-2xl bg-neutral-900/50 border border-neutral-800 text-neutral-300 font-medium tracking-tight transition-colors hover:bg-neutral-800 hover:text-white flex items-center justify-center">
                     Sobre
-                  </a>
+                  </Link>
                 </>
               )}
 

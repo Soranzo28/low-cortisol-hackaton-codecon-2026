@@ -5,6 +5,7 @@
 export const ROUTES = {
   HOME: '/',
   ROOM: '/room/:roomId',
+  ABOUT: '/sobre',
 } as const
 
 /** Build a room URL for a specific room ID. */

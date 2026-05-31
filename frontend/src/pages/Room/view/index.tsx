@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect } from 'react'
+import { ArrowLeft } from 'lucide-react'
 import { StatusBadge } from '@/components/StatusBadge'
 import { OpponentPanel } from '@/components/OpponentPanel'
 import { ROUTES } from '@/routes'
@@ -30,26 +31,27 @@ export function RoomView(props: RoomViewProps) {
         <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-emerald-900/10 blur-[120px] rounded-full mix-blend-screen" />
       </div>
 
+      {/* Back button — train mode only, absolute like About page */}
+      {isTrain && (
+        <button
+          onClick={() => navigate(ROUTES.HOME)}
+          className="absolute top-6 left-6 md:top-8 md:left-8 w-12 h-12 rounded-full bg-neutral-900/60 border border-neutral-800 flex items-center justify-center text-neutral-400 hover:text-white hover:bg-neutral-800 transition-all backdrop-blur-md z-50 hover:scale-105 active:scale-95"
+          title="Voltar para o Início"
+        >
+          <ArrowLeft size={24} />
+        </button>
+      )}
+
       {/* Header / Timer */}
-      <div className="w-full h-12 md:h-16 shrink-0 relative z-20 flex justify-between items-start">
-        <div className="flex-1 flex items-center gap-2">
-          {isTrain && (
-            <button onClick={() => navigate(ROUTES.HOME)} className="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-white rounded-full text-sm font-semibold transition-colors">
-              ← Voltar
-            </button>
-          )}
-        </div>
-        <div className="flex-1 flex justify-center">
-          {remaining !== null && gameOver === null && !isTrain && (
-            <TimerBadge remaining={remaining} />
-          )}
-          {isTrain && (
-            <div style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', borderRadius: '9999px', padding: '0.35rem 1.25rem', border: '1px solid rgba(255,255,255,0.2)' }}>
-              <span style={{ color: 'white', fontFamily: "'Inter', sans-serif", fontWeight: 700, fontSize: '1.1rem' }}>Treinamento Livre</span>
-            </div>
-          )}
-        </div>
-        <div className="flex-1" />
+      <div className="w-full h-16 md:h-20 shrink-0 relative z-20 flex justify-center items-center">
+        {remaining !== null && gameOver === null && !isTrain && (
+          <TimerBadge remaining={remaining} />
+        )}
+        {isTrain && (
+          <div style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', borderRadius: '9999px', padding: '0.35rem 1.25rem', border: '1px solid rgba(255,255,255,0.2)', marginTop: '1rem' }}>
+            <span style={{ color: 'white', fontFamily: "'Inter', sans-serif", fontWeight: 700, fontSize: '1.1rem' }}>Treinamento Livre</span>
+          </div>
+        )}
       </div>
 
       {/* Main Content Area */}
@@ -70,7 +72,7 @@ export function RoomView(props: RoomViewProps) {
         {/* Local player column */}
         <div style={isMatched && !isMobile
           ? { flex: '1 1 0', minWidth: 0, maxWidth: 750, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }
-          : { width: '100%', maxWidth: 600, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }
+          : { width: '100%', maxWidth: isTrain ? 750 : 600, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }
         }>
           {/* Camera panel + optional train event selector side by side */}
           <div style={{ display: 'flex', width: '100%', gap: '0.75rem', alignItems: 'flex-start' }}>

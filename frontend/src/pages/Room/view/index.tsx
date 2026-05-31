@@ -1,3 +1,4 @@
+import { useRef, useState, useEffect } from 'react'
 import { StatusBadge } from '@/components/StatusBadge'
 import { OpponentPanel } from '@/components/OpponentPanel'
 import { ROUTES } from '@/routes'
@@ -161,10 +162,31 @@ function WifiIcon({ color }: { color: string }) {
 
 function PlayerInfoOverlay({ score, latencyMs }: { score: number; latencyMs: number | null }) {
   const lColor = latencyColor(latencyMs)
+  const prevScoreRef = useRef(score)
+  const [animKey, setAnimKey] = useState(0)
+
+  useEffect(() => {
+    if (score > prevScoreRef.current) {
+      setAnimKey(k => k + 1)
+    }
+    prevScoreRef.current = score
+  }, [score])
+
   return (
     <div style={{ position: 'absolute', top: '0.75rem', left: '0.75rem', zIndex: 11, display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-      <div style={{ background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(6px)', borderRadius: '0.5rem', padding: '0.3rem 0.65rem', display: 'inline-flex', alignItems: 'center' }}>
-        <span style={{ color: '#00ff88', fontSize: '1.15rem', fontWeight: 800, fontFamily: "'Inter', sans-serif", textShadow: '0 0 12px rgba(0,255,136,0.55)' }}>
+      <div style={{ background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(6px)', borderRadius: '0.5rem', padding: '0.3rem 0.75rem', display: 'inline-flex', alignItems: 'center' }}>
+        <span
+          key={animKey}
+          style={{
+            color: 'white',
+            fontSize: '2rem',
+            fontWeight: 800,
+            fontFamily: "'Inter', sans-serif",
+            textShadow: '0 2px 16px rgba(255,255,255,0.3)',
+            display: 'inline-block',
+            animation: animKey > 0 ? 'sanfona 0.45s ease-out' : 'none',
+          }}
+        >
           +{score} 💀
         </span>
       </div>
@@ -311,8 +333,8 @@ function TimerBadge({ remaining }: { remaining: number }) {
   const isDanger = remaining <= 5; const isWarning = remaining <= 10
   const color = isDanger ? '#ef4444' : isWarning ? '#f59e0b' : 'rgba(255,255,255,0.9)'
   return (
-    <div style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', borderRadius: '9999px', padding: '0.35rem 1.25rem', border: `1px solid ${color}55`, whiteSpace: 'nowrap', transition: 'border-color 0.3s' }}>
-      <span style={{ color, fontFamily: "'Inter', sans-serif", fontWeight: 700, fontSize: '1.1rem', fontVariantNumeric: 'tabular-nums', transition: 'color 0.3s' }}>Tempo Restante: {remaining}s</span>
+    <div style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', borderRadius: '9999px', padding: '0.5rem 1.75rem', border: `1px solid ${color}55`, whiteSpace: 'nowrap', transition: 'border-color 0.3s' }}>
+      <span style={{ color, fontFamily: "'Inter', sans-serif", fontWeight: 700, fontSize: '1.9rem', fontVariantNumeric: 'tabular-nums', transition: 'color 0.3s' }}>Tempo Restante: {remaining}s</span>
     </div>
   )
 }

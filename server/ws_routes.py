@@ -83,6 +83,87 @@ async def queue_endpoint(ws: WebSocket):
         game.player_info.pop(id(ws), None)
 
 
+@router.websocket("/queue_private")
+async def queue_private_endpoint(ws: WebSocket):
+    await ws.accept()
+
+    clerk_user_id: str | None = None
+    nick = "anon"
+    action = None
+    code_to_join = None
+
+    try:
+        raw = await asyncio.wait_for(ws.receive_text(), timeout=5.0)
+        msg = json.loads(raw)
+        if msg.get("type") in ["create", "join"] and msg.get("clerk_token"):
+            action = msg.get("type")
+            code_to_join = msg.get("code")
+            clerk_user_id = await verify_clerk_token(msg["clerk_token"])
+            player = await db.get_player(clerk_user_id)
+            if player and player.get("nick"):
+                nick = player["nick"]
+            elif player is None:
+                clerk_user_id = None
+    except Exception:
+        pass
+
+    if not clerk_user_id or not action:
+        await ws.close(code=1008, reason="Authentication required or invalid action")
+        return
+
+    total_score = player.get("total_score", 0) if player else 0
+    image_url = player.get("profile_image_url") if player else None
+    game.player_info[id(ws)] = {"clerk_user_id": clerk_user_id, "nick": nick, "total_score": total_score, "image_url": image_url}
+
+    if action == "join":
+        if not code_to_join or code_to_join not in game.private_queue:
+            await ws.close(code=4004, reason="Code not found or creator left")
+            return
+
+        opponent = game.private_queue.pop(code_to_join)
+        room_id = game.make_room_id()
+        game.rooms[room_id] = []
+
+        opp_info = game.player_info.get(id(opponent), {})
+        opp_nick = opp_info.get("nick", "anon")
+        opp_score = opp_info.get("total_score", 0)
+        game.room_player_info[room_id] = [opp_info, game.player_info[id(ws)]]
+        game.room_state[room_id] = 'waiting'
+
+        await game.ws_send(opponent, {"type": "matched", "roomId": room_id, "role": "offerer", "opp_nick": nick, "opp_score": total_score, "your_score": opp_score, "opp_image_url": image_url})
+        await game.ws_send(ws, {"type": "matched", "roomId": room_id, "role": "answerer", "opp_nick": opp_nick, "opp_score": opp_score, "your_score": total_score, "opp_image_url": opp_info.get("image_url")})
+
+        game.player_info.pop(id(ws), None)
+        try:
+            await opponent.close()
+        except Exception:
+            pass
+        try:
+            await ws.close()
+        except Exception:
+            pass
+        return
+
+    elif action == "create":
+        code = game.make_private_code()
+        while code in game.private_queue:
+            code = game.make_private_code()
+            
+        game.private_queue[code] = ws
+        await game.ws_send(ws, {"type": "room_created", "code": code})
+        log.info("Player %s created private room %s.", nick, code)
+
+        try:
+            async for _ in ws.iter_text():
+                pass
+        except WebSocketDisconnect:
+            log.info("Player %s left private queue %s.", nick, code)
+        finally:
+            if game.private_queue.get(code) == ws:
+                game.private_queue.pop(code, None)
+            game.player_info.pop(id(ws), None)
+
+
 async def _reconnect_grace(room_id: str) -> None:
     """End the match if the disconnected player doesn't reconnect within 15s."""
     await asyncio.sleep(15)

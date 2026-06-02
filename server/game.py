@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 import random
+import string
 import uuid
 
 import db
@@ -25,6 +26,7 @@ CODECON_TERMS = [
 # ── State ──────────────────────────────────────────────────────────────────────
 
 queue: list[WebSocket] = []
+private_queue: dict[str, WebSocket] = {}
 rooms: dict[str, list[WebSocket]] = {}
 _cleanup_tasks: dict[str, asyncio.Task] = {}
 room_scores: dict[str, dict[int, int]] = {}
@@ -65,6 +67,10 @@ async def relay_to_opponent(room_id: str, sender: WebSocket, msg: dict) -> None:
 def make_room_id() -> str:
     prefix = random.choice(CODECON_TERMS)
     return f"{prefix}_{uuid.uuid4().hex}{uuid.uuid4().hex}"
+
+
+def make_private_code() -> str:
+    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
 
 
 # ── Event coroutine ────────────────────────────────────────────────────────────

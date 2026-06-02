@@ -131,9 +131,32 @@ export function useHomeController() {
     },
   })
 
+  const [createdRoomCode, setCreatedRoomCode] = useState<string | null>(null)
+  const [showJoinModal, setShowJoinModal] = useState(false)
+  const [joinCodeInput, setJoinCodeInput] = useState('')
+
+  const { status: privateStatus, join: joinPrivate, leave: leavePrivate } = useQueue({
+    serverUrl: `${WS_PROTO}://${SERVER}/queue_private`,
+    getToken,
+    onRoomCreated(code) {
+      setCreatedRoomCode(code)
+    },
+    onMatched(roomId) {
+      window.location.href = roomPath(roomId)
+    },
+  })
+
+  // When leaving private queue, also clear the code
+  const handleLeavePrivate = useCallback(() => {
+    leavePrivate()
+    setCreatedRoomCode(null)
+  }, [leavePrivate])
+
   useEffect(() => () => leave(), [leave])
+  useEffect(() => () => handleLeavePrivate(), [handleLeavePrivate])
 
   const isQueuing = status === 'connecting' || status === 'waiting'
+  const isPrivateQueuing = privateStatus === 'connecting' || privateStatus === 'waiting'
   const canPlay = !!isSignedIn && !!meData?.nick
 
   function openNickModal(prefill?: string) {
@@ -183,6 +206,18 @@ export function useHomeController() {
     join,
     leave,
     isQueuing,
+    
+    // Private Queue
+    privateStatus,
+    joinPrivate,
+    leavePrivate: handleLeavePrivate,
+    isPrivateQueuing,
+    createdRoomCode,
+    showJoinModal,
+    setShowJoinModal,
+    joinCodeInput,
+    setJoinCodeInput,
+    
     canPlay,
   }
 }

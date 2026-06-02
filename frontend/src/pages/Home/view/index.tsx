@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { useHomeController } from '../controller'
 import type { NickModalProps, RankingEntry, MeData } from '../types'
 import { RefreshCw } from 'lucide-react'
@@ -30,8 +31,19 @@ export function HomeView(props: HomeViewProps) {
     join,
     leave,
     isQueuing,
+    privateStatus,
+    joinPrivate,
+    leavePrivate,
+    isPrivateQueuing,
+    createdRoomCode,
+    showJoinModal,
+    setShowJoinModal,
+    joinCodeInput,
+    setJoinCodeInput,
     canPlay,
   } = props
+
+  const [showPlayMenuModal, setShowPlayMenuModal] = useState(false)
 
   // Show full-screen spinner while Clerk or /me loads
   if (!isLoaded || meLoading) {
@@ -101,7 +113,7 @@ export function HomeView(props: HomeViewProps) {
 
             {/* Actions */}
             <div className="w-full max-w-sm flex flex-col gap-3">
-              {!isQueuing && status !== 'matched' && (
+              {!isQueuing && !isPrivateQueuing && status !== 'matched' && privateStatus !== 'matched' && (
                 <>
                   <p className="text-xs text-neutral-500 text-center px-1 -mb-1">
                     Este jogo usa sua câmera para detectar gestos. Permita o acesso quando solicitado.
@@ -110,7 +122,7 @@ export function HomeView(props: HomeViewProps) {
                   {/* Primary action: changes based on auth state */}
                   {canPlay ? (
                     <button
-                      onClick={join}
+                      onClick={() => setShowPlayMenuModal(true)}
                       className="w-full h-16 md:h-14 rounded-2xl bg-white text-black font-semibold text-lg tracking-tight transition-transform active:scale-[0.98] active:bg-neutral-200 flex items-center justify-center gap-2 shadow-[0_0_40px_-10px_rgba(255,255,255,0.3)]"
                     >
                       Encontrar Partida
@@ -141,21 +153,27 @@ export function HomeView(props: HomeViewProps) {
               )}
 
               {/* Queuing state */}
-              {isQueuing && (
+              {(isQueuing || isPrivateQueuing) && (
                 <div className="w-full flex flex-col items-center justify-center py-8 px-4 bg-neutral-900/50 border border-neutral-800 rounded-3xl">
                   <div className="w-8 h-8 border-2 border-neutral-700 border-t-white rounded-full animate-spin mb-4" />
-                  <p className="text-neutral-300 font-medium mb-6">
-                    {status === 'connecting' ? 'Conectando ao servidor...' : 'Aguardando oponente...'}
+                  <p className="text-neutral-300 font-medium mb-6 text-center">
+                    {status === 'connecting' || privateStatus === 'connecting' ? 'Conectando ao servidor...' : 
+                     createdRoomCode ? (
+                       <>
+                         Sala criada! Envie o código para o seu amigo: <br/>
+                         <span className="text-2xl font-bold tracking-widest text-emerald-400 mt-2 block">{createdRoomCode}</span>
+                       </>
+                     ) : 'Aguardando oponente...'}
                   </p>
-                  <button onClick={leave} className="px-6 py-2 rounded-full bg-neutral-800 hover:bg-neutral-700 text-neutral-300 text-sm font-medium transition-colors">
+                  <button onClick={isQueuing ? leave : leavePrivate} className="px-6 py-2 rounded-full bg-neutral-800 hover:bg-neutral-700 text-neutral-300 text-sm font-medium transition-colors">
                     Cancelar
                   </button>
                 </div>
               )}
 
-              {status === 'error' && (
+              {(status === 'error' || privateStatus === 'error') && (
                 <div className="w-full p-4 mt-2 rounded-2xl bg-red-950/30 border border-red-900/50 text-red-400 text-center text-sm font-medium">
-                  Não foi possível conectar. Verifique se você está autenticado e tem um apelido definido.
+                  Não foi possível conectar. Verifique se você está autenticado e tem um apelido definido, ou se o código inserido é válido.
                 </div>
               )}
             </div>
@@ -175,6 +193,85 @@ export function HomeView(props: HomeViewProps) {
           onSave={handleSaveNick}
           onCancel={meData?.nick ? closeNickModal : undefined}
         />
+      )}
+
+      {/* Play Menu Modal */}
+      {showPlayMenuModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-6">
+          <div className="w-full max-w-sm bg-neutral-900 border border-neutral-800 rounded-3xl p-8 flex flex-col gap-4 shadow-2xl">
+            <h2 className="text-xl font-semibold text-white tracking-tight mb-2">Modo de Jogo</h2>
+            
+            <button
+              onClick={() => { setShowPlayMenuModal(false); join(); }}
+              className="w-full h-14 rounded-2xl bg-white text-black font-semibold tracking-tight transition-transform active:scale-[0.98] hover:bg-neutral-200"
+            >
+              Procurar Aleatório
+            </button>
+            
+            <button
+              onClick={() => { setShowPlayMenuModal(false); joinPrivate('create'); }}
+              className="w-full h-14 rounded-2xl bg-indigo-500 text-white font-semibold tracking-tight transition-transform active:scale-[0.98] hover:bg-indigo-400"
+            >
+              Criar Sala Privada
+            </button>
+            
+            <button
+              onClick={() => { setShowPlayMenuModal(false); setShowJoinModal(true); }}
+              className="w-full h-14 rounded-2xl bg-neutral-800 text-white font-semibold tracking-tight transition-transform active:scale-[0.98] border border-neutral-700 hover:bg-neutral-700"
+            >
+              Inserir Código
+            </button>
+            
+            <button
+              onClick={() => setShowPlayMenuModal(false)}
+              className="mt-2 w-full h-12 rounded-2xl bg-transparent border border-neutral-800 text-neutral-400 font-medium tracking-tight hover:bg-neutral-800 hover:text-white transition-colors"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Join Private Modal */}
+      {showJoinModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-6">
+          <div className="w-full max-w-sm bg-neutral-900 border border-neutral-800 rounded-3xl p-8 flex flex-col gap-6 shadow-2xl">
+            <div className="flex flex-col gap-1">
+              <h2 className="text-xl font-semibold text-white tracking-tight">Entrar em Sala Privada</h2>
+              <p className="text-sm text-neutral-500">Digite o código que seu amigo passou.</p>
+            </div>
+            
+            <input
+              type="text"
+              value={joinCodeInput}
+              onChange={(e) => setJoinCodeInput(e.target.value.toUpperCase())}
+              maxLength={6}
+              placeholder="CÓDIGO (ex: ABC123)"
+              className="w-full bg-neutral-800 border border-neutral-700 rounded-xl px-4 py-3 text-white placeholder-neutral-600 text-center font-mono text-xl tracking-widest focus:outline-none focus:border-indigo-500 transition-colors uppercase"
+            />
+            
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => {
+                  if (joinCodeInput.length > 0) {
+                    setShowJoinModal(false);
+                    joinPrivate('join', joinCodeInput);
+                  }
+                }}
+                disabled={joinCodeInput.length === 0}
+                className="w-full h-12 rounded-2xl bg-indigo-500 text-white font-semibold tracking-tight transition-transform active:scale-[0.98] active:bg-indigo-400 disabled:opacity-50"
+              >
+                Entrar
+              </button>
+              <button
+                onClick={() => { setShowJoinModal(false); setJoinCodeInput(''); }}
+                className="w-full h-12 rounded-2xl bg-transparent border border-neutral-800 text-neutral-400 font-medium tracking-tight hover:bg-neutral-800 hover:text-white transition-colors"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
